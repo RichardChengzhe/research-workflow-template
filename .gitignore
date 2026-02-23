@@ -1,0 +1,63 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+*.egg-info/
+.eggs/
+
+# Stata
+*.smcl
+*.gph
+code/**/*.log
+
+# LaTeX
+*.aux
+*.bbl
+*.blg
+*.fdb_latexmk
+*.fls
+*.out
+*.synctex.gz
+*.toc
+*.lof
+*.lot
+*.nav
+*.snm
+*.vrb
+*.run.xml
+*.bcf
+*-blx.bib
+
+# Data -- large files not tracked by git
+data/raw/**/*.csv
+data/raw/**/*.xlsx
+data/raw/**/*.xls
+data/raw/**/*.dta
+data/raw/**/*.pdf
+data/raw/**/*.sas7bdat
+data/processed/
+*.dta
+
+# But keep the raw data README
+!data/raw/README.md
+
+# Claude Code
+.claude/settings.local.json
+.claude/state/
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Scratch / temporary
+scratch/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~

@@ -1,0 +1,81 @@
+\documentclass[12pt]{article}
+
+% --- Packages ---
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{natbib}
+\usepackage{setspace}
+\usepackage{hyperref}
+\usepackage{float}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{threeparttable}
+\usepackage{dcolumn}
+\usepackage{pdflscape}
+
+% --- Path configuration ---
+\graphicspath{{../output/figures/}}
+
+% --- Document settings ---
+\doublespacing
+\bibliographystyle{aer}
+
+% --- Title ---
+\title{[YOUR PAPER TITLE]}
+\author{
+  [Author One]\thanks{[Institution]. Email: \href{mailto:[email]}{[email]}.} \\
+  \textit{[Institution]}
+}
+\date{\today}
+
+% ==============================================================================
+\begin{document}
+% ==============================================================================
+
+\maketitle
+
+\begin{abstract}
+\noindent
+[YOUR ABSTRACT HERE]
+
+\medskip
+\noindent\textbf{JEL Codes:} [XX, YY, ZZ] \\
+\noindent\textbf{Keywords:} [keyword1, keyword2, keyword3]
+\end{abstract}
+
+\newpage
+
+\section{Introduction}
+\label{sec:introduction}
+
+\section{Institutional Background}
+\label{sec:background}
+
+\section{Data}
+\label{sec:data}
+
+\section{Empirical Strategy}
+\label{sec:empirical_strategy}
+
+\section{Results}
+\label{sec:results}
+
+\section{Robustness}
+\label{sec:robustness}
+
+\section{Conclusion}
+\label{sec:conclusion}
+
+\newpage
+\bibliography{references}
+
+\newpage
+\appendix
+\section{Additional Tables and Figures}
+\label{sec:appendix}
+
+% ==============================================================================
+\end{document}
+% ==============================================================================
