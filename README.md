@@ -43,7 +43,7 @@ project-root/
 │   ├── WORKFLOW_QUICK_REF.md    # Contractor model quick reference
 │   ├── rules/        (14)       # Path-scoped behavioral rules
 │   ├── agents/       (4)        # Specialized review agents
-│   ├── skills/       (19)       # Slash commands (/run, /check, /status, etc.)
+│   ├── skills/       (21)       # Slash commands (/run, /check, /status, etc.) + Stata skills
 │   └── hooks/        (7)        # Automation hooks
 │
 ├── code/
@@ -195,6 +195,19 @@ python scripts/quality_score.py manuscript/main.tex         # Score the manuscri
 ./run_all.sh --all               # Run full pipeline
 ```
 
+## Recommended Plugins
+
+For comprehensive Stata language support, install the [dylantmoore/stata-skill](https://github.com/dylantmoore/stata-skill) plugin. It provides 37 reference files covering syntax, econometrics, causal inference, and 20+ community packages (reghdfe, csdid, did_multiplegt, rdrobust, synth, etc.) with progressive disclosure to keep context lean.
+
+```bash
+/plugin marketplace add dylantmoore/stata-skill
+/plugin install stata@dylantmoore-stata-skill
+```
+
+This complements the two Stata skills bundled with the template:
+- **stata-execution** — Windows batch execution, MCP tool usage, syntax pitfalls, debugging
+- **stata-workflow** — Panel data patterns, reghdfe specs, esttab formatting, merge workflows
+
 ## Requirements
 
 - **Stata** (StataMP/SE) — update path in `run_all.sh`
@@ -202,6 +215,7 @@ python scripts/quality_score.py manuscript/main.tex         # Score the manuscri
 - **LaTeX** (TeX Live or MiKTeX) — for manuscript compilation
 - **Git + GitHub CLI** (`gh`) — for version control
 - **Claude Code** — AI development assistant
+- **pdftotext** (poppler) — for token-efficient PDF doc searches (included with Git for Windows/mingw64)
 
 ## License
 

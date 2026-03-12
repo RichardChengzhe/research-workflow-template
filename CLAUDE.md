@@ -112,6 +112,8 @@ python scripts/quality_score.py FILE  # Quality score
 | `/data-analysis` | End-to-end Python/Stata analysis |
 | `/context-status` | Session health check |
 | `/learn [name]` | Extract reusable skill |
+| `/stata-execution` | Stata execution on Windows: batch mode, MCP, pitfalls |
+| `/stata-workflow` | Stata patterns: panel data, reghdfe, esttab, merges |
 
 ## Research Design Summary
 
