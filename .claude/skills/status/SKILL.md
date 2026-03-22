@@ -34,7 +34,7 @@ Quick project overview for session orientation.
 ## Output Format
 
 ```
-Project: Data Center Investment and Municipal Bond Financing
+Project: [YOUR PROJECT NAME]
 
 Pipeline Status:
 | Step | Script | Last Run | Status |

@@ -11,8 +11,8 @@ paths:
 ```
 data/
 ├── raw/           <- READ-ONLY source data. NEVER modify.
-│   ├── capital_iq/
-│   ├── muni_bond/
+│   ├── source_a/
+│   ├── source_b/
 │   └── README.md  <- Documents all sources
 └── processed/     <- Derived datasets created by scripts
 ```
@@ -28,7 +28,7 @@ data/
 
 ### Processed Data Files
 - Format: `[description]_[version].dta` or `.csv` or `.pkl`
-- Examples: `capital_iq_clean.dta`, `analysis_sample_v2.dta`
+- Examples: `source_a_clean.dta`, `analysis_sample_v2.dta`
 - Include creation date in file metadata, not filename
 
 ### Scripts
@@ -41,13 +41,13 @@ data/
 When merging datasets, document in the script header AND in pipeline.md:
 
 ```stata
-* Merge: capital_iq_clean.dta (N=XXX) x muni_bond_clean.dta (N=YYY)
-* Key: state_fips + year
-* Expected: M:M merge
+* Merge: source_a_clean.dta (N=XXX) x source_b_clean.dta (N=YYY)
+* Key: id + year
+* Expected: M:1 merge
 * Result: N=ZZZ observations, XX% matched
-merge m:m state_fips year using "$processed/muni_bond_clean.dta"
+merge m:1 id year using "$processed/source_b_clean.dta"
 tab _merge
-assert _merge != 1  // all capital_iq obs should match
+assert _merge != 1  // all source_a obs should match
 ```
 
 ## Pipeline Integrity

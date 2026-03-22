@@ -4,7 +4,7 @@ description: |
   [What the skill does]
   [Specific trigger conditions]
   [When to use it]
-author: DC Muni Bond Research
+author: [Your Name]
 version: 1.0.0
 argument-hint: "[expected arguments]"
 allowed-tools: ["Read", "Grep", "Glob"]
