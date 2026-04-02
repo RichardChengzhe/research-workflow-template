@@ -165,10 +165,14 @@ proc upload infile='C:/local/path/firms.csv'
             outfile='/home/institution/user/firms.csv';
 run;
 
-/* Download WRDS result to local */
+/* Download WRDS result to local (MUST be inside rsubmit block) */
 proc download data=work.results out=work.results;
 run;
+
+endrsubmit;
 ```
+
+**IMPORTANT:** Both `proc upload` and `proc download` must be inside an `rsubmit`/`endrsubmit` block. They will fail with "must be invoked with RSUBMIT" otherwise.
 
 ### Remote Work Directories
 
