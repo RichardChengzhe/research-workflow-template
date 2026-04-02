@@ -1,7 +1,7 @@
 ---
 name: run
 description: Execute a pipeline step via run_all.sh or MCP Stata. Reads the log and summarizes results. Use to run analysis scripts.
-argument-hint: "[script_name.do or script_name.py or --all]"
+argument-hint: "[script_name.do or script_name.py or script_name.sas or --all]"
 allowed-tools: ["Read", "Bash", "Glob"]
 ---
 
@@ -18,7 +18,7 @@ Execute a pipeline step, read the log, and summarize results.
    - If not specified, ask which step to run
 
 2. **Pre-flight checks:**
-   - Confirm script exists in `code/stata/` or `code/python/`
+   - Confirm script exists in `code/stata/`, `code/python/`, or `code/sas/`
    - Confirm input files exist (check script header for inputs)
    - Check `code/stata/params.do` for current parameter values
 
@@ -31,8 +31,9 @@ Execute a pipeline step, read the log, and summarize results.
 4. **Read the log:**
    - Find the most recent log in `output/logs/` for this script
    - Read the full log
-   - Check for errors (Stata: `r(NNN)` codes; Python: tracebacks)
+   - Check for errors (Stata: `r(NNN)` codes; Python: tracebacks; SAS: `ERROR:` lines — exit codes unreliable)
    - Check for warnings
+   - SAS: if script uses WRDS (`rsubmit`), remind user to approve Duo push on phone
 
 5. **Summarize results:**
    - Report success/failure

@@ -61,6 +61,7 @@ project-root/
 ├── CLAUDE.md, MEMORY.md, pipeline.md, run_all.sh
 ├── code/stata/          <- Stata .do files (numbered pipeline steps)
 ├── code/python/         <- Python scripts
+├── code/sas/            <- SAS .sas programs (WRDS queries, data prep)
 ├── code/programs/       <- Shared utilities
 ├── data/raw/            <- READ-ONLY source data
 ├── data/processed/      <- Derived datasets

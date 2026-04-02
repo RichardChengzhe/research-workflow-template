@@ -12,7 +12,7 @@ Scaffold a new pipeline step with all necessary documentation and integration.
 
 1. **Gather information** (ask user if not provided):
    - Step number (suggest the next available number with a gap)
-   - Script name and language (Stata or Python)
+   - Script name and language (Stata, Python, or SAS)
    - Brief description of what the step does
    - Input files
    - Expected output files
@@ -55,6 +55,25 @@ from pathlib import Path
 import pandas as pd
 
 # --- Main code here ---
+
+```
+
+**For SAS (`code/sas/NN_description.sas`):**
+```sas
+/* ==============================================================================
+ * [Step NN]: [Descriptive Title]
+ *
+ * Purpose: [What this script does]
+ * Inputs:  [Data files/libraries read]
+ * Outputs: [Datasets/files created]
+ * Dependencies: [Upstream scripts, WRDS access needed?]
+ * ============================================================================== */
+
+%let projroot = [PROJECT ROOT PATH];
+libname raw    "&projroot/data/raw";
+libname proc   "&projroot/data/processed";
+
+/* --- Main code here --- */
 
 ```
 

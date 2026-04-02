@@ -2,6 +2,7 @@
 paths:
   - "code/**/*.do"
   - "code/**/*.py"
+  - "code/**/*.sas"
 ---
 
 # Replication-First Protocol

@@ -24,6 +24,17 @@ paths:
 4. Check for warnings in stdout/stderr
 5. Report verification results
 
+## For SAS .sas Files:
+1. Run via `./run_all.sh "script_name.sas"`
+2. Read the log file in `output/logs/`
+3. Search for `ERROR:` lines (any = failure)
+4. Check `WARNING:` lines and evaluate significance
+5. Verify observation counts in `NOTE:` lines match expectations
+6. Verify output files (.sas7bdat, .csv, .xlsx, .dta) were created with non-zero size
+7. Note: SAS exit codes are unreliable — the log is authoritative
+8. If script uses WRDS (`rsubmit`): remind user to approve Duo push on phone
+9. Report verification results
+
 ## For LaTeX Manuscript:
 1. Compile with `latexmk -pdf manuscript/main.tex`
 2. Check for errors and warnings

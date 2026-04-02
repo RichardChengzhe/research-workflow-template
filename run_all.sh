@@ -24,8 +24,9 @@ STATA_PATH="stata-mp"  # Default: assumes Stata is in PATH
 PYTHON_PATH="$(which python 2>/dev/null || which python3 2>/dev/null || echo 'python')"
 
 # SAS (Windows default — update for your installation)
-# SAS_PATH="/c/Program Files/SASHome/SASFoundation/9.4/sas.exe"
-SAS_PATH="sas"  # Default: assumes SAS is in PATH
+SAS_PATH="/c/Program Files/SASHome/SASFoundation/9.4/sas.exe"
+# Linux/macOS:
+# SAS_PATH="sas"  # assumes SAS is in PATH
 # ------------------------
 
 # Ensure log directory exists
@@ -101,7 +102,9 @@ run_sas() {
     # Always check the log — SAS exit codes are unreliable
     if [[ -f "$logfile" ]]; then
         local error_count
-        error_count=$(grep -c "^ERROR" "$logfile" 2>/dev/null || echo 0)
+        error_count=$(grep -c "^ERROR" "$logfile" 2>/dev/null || true)
+        error_count=${error_count:-0}
+        error_count=$(echo "$error_count" | tr -d '[:space:]')
         if [[ "$error_count" -gt 0 ]]; then
             echo "SAS log contains $error_count ERROR(s) — check log"
             exit_code=2
