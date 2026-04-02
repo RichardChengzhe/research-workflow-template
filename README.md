@@ -1,6 +1,6 @@
 # Research Workflow Template
 
-A combined research project workflow for empirical economics/finance using **Python + Stata**, with AI-assisted development via Claude Code.
+A combined research project workflow for empirical economics/finance using **Python + Stata + SAS**, with AI-assisted development via Claude Code.
 
 Combines infrastructure from:
 - **[pedrohcgs template](https://github.com/pedrohcgs/claude-code-my-workflow)**: Plan-first workflow, quality gates, orchestrator mode, context survival hooks, review agents, [LEARN] memory system
@@ -43,7 +43,7 @@ project-root/
 │   ├── WORKFLOW_QUICK_REF.md    # Contractor model quick reference
 │   ├── rules/        (14)       # Path-scoped behavioral rules
 │   ├── agents/       (8)        # Specialized review + fixer agents
-│   ├── skills/       (24)       # Slash commands (/run, /check, /fix-code, etc.) + Stata skills
+│   ├── skills/       (25)       # Slash commands (/run, /check, /fix-code, /sas, etc.)
 │   └── hooks/        (7)        # Automation hooks
 │
 ├── code/
@@ -51,6 +51,7 @@ project-root/
 │   │   ├── 00_run.do            # Master do-file with globals
 │   │   └── params.do            # Centralized research parameters
 │   ├── python/                  # Python scripts
+│   ├── sas/                     # SAS .sas programs (WRDS queries, data prep)
 │   └── programs/                # Shared utilities
 │
 ├── data/
@@ -136,6 +137,7 @@ Your instruction
 | `/review-paper [file]` | Comprehensive manuscript review |
 | `/context-status` | Session health check |
 | `/learn [name]` | Extract reusable skill |
+| `/sas [script]` | SAS execution: local batch, WRDS remote, debugging |
 | `/fix-code [script]` | Adversarial code quality loop (critic -> fixer) |
 | `/fix-manuscript [file]` | Adversarial proofreading loop |
 | `/fix-output` | AEA table/figure formatting loop |
@@ -199,8 +201,9 @@ python scripts/quality_score.py manuscript/main.tex         # Score the manuscri
 ## Pipeline Management
 
 ```bash
-./run_all.sh "01_import.do"      # Run single step
-./run_all.sh --all               # Run full pipeline
+./run_all.sh "01_import.do"          # Run single Stata step
+./run_all.sh "0_CompControls.sas"    # Run single SAS step
+./run_all.sh --all                   # Run full pipeline
 ```
 
 ## Recommended Plugins
@@ -219,6 +222,7 @@ This complements the two Stata skills bundled with the template:
 ## Requirements
 
 - **Stata** (StataMP/SE) — update path in `run_all.sh`
+- **SAS 9.4+** (optional) — for WRDS queries and data preparation; update path in `run_all.sh`
 - **Python 3.8+** — for scripts and quality scoring
 - **LaTeX** (TeX Live or MiKTeX) — for manuscript compilation
 - **Git + GitHub CLI** (`gh`) — for version control

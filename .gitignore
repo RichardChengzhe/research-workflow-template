@@ -12,6 +12,13 @@ venv/
 *.gph
 code/**/*.log
 
+# SAS
+*.sas7bdat
+*.sas7bcat
+*.lst
+code/**/*.log
+autoexec.sas
+
 # LaTeX
 *.aux
 *.bbl

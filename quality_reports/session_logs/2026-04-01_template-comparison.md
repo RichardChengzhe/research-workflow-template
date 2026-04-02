@@ -65,3 +65,27 @@ Compared full contents of both repos. Pedro's repo is slide/teaching-focused (Be
 - `CLAUDE.md`
 - `MEMORY.md`
 - `README.md`
+
+---
+
+## SAS Integration (Second Commit)
+
+### What Was Done
+- Read all 26 SAS files from the DEI rollback project to learn patterns
+- SAS 9.4 found locally at `C:/Program Files/SASHome/SASFoundation/9.4/sas.exe`
+
+### Files Created
+- `.claude/skills/sas/SKILL.md` — comprehensive SAS skill (local batch + WRDS remote + conventions + patterns + debugging)
+- `code/sas/.gitkeep` — SAS code directory
+
+### Files Modified
+- `run_all.sh` — added `run_sas()` function with SAS_PATH config and log-based error detection
+- `.claude/rules/quality-gates.md` — added SAS rubric (hardcoded passwords = -30, etc.)
+- `.claude/rules/python-stata-conventions.md` — added SAS standards section (header, paths, WRDS, data management, output, logging)
+- `.claude/agents/code-reviewer.md` — added SAS checks to lenses 1, 2, 7
+- `.claude/agents/code-fixer.md` — added SAS mechanical fixes
+- `.claude/agents/verifier.md` — added SAS verification procedure
+- `.claude/settings.json` — added SAS batch permission
+- `.gitignore` — added SAS artifacts (sas7bdat, lst, autoexec.sas)
+- `CLAUDE.md` — added `/sas` skill to quick reference
+- `README.md` — updated description, directory tree, pipeline commands, skills, requirements

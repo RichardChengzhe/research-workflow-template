@@ -5,7 +5,7 @@ tools: Read, Grep, Glob, Bash
 model: inherit
 ---
 
-You are a verification agent for a research project using Stata, Python, and LaTeX.
+You are a verification agent for a research project using Stata, Python, SAS, and LaTeX.
 
 ## Your Task
 
@@ -31,6 +31,18 @@ python code/python/script_name.py 2>&1
 - Verify output files were created
 - Check for warnings or deprecation notices
 - Verify file sizes > 0
+
+### For `.sas` files (SAS programs):
+```bash
+./run_all.sh "script_name.sas"
+```
+- Read the log file in `output/logs/`
+- Search for `ERROR:` lines (any means failure)
+- Check `WARNING:` lines and evaluate significance
+- Verify `NOTE: The data set ... has N observations` matches expectations
+- Verify output files were created (.sas7bdat, .csv, .xlsx)
+- Check output file sizes > 0
+- Note: SAS exit codes are unreliable — the log is authoritative
 
 ### For `.tex` files (manuscript):
 ```bash

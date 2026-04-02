@@ -2,6 +2,7 @@
 paths:
   - "code/**/*.py"
   - "code/**/*.do"
+  - "code/**/*.sas"
   - "manuscript/**/*.tex"
   - "output/**"
 ---
@@ -40,6 +41,22 @@ paths:
 | Major | Missing `estout`/`esttab` for regression output | -5 |
 | Minor | Missing script header (purpose, inputs, outputs) | -3 |
 | Minor | Hardcoded values that should be in params.do | -3 |
+
+## SAS Programs (.sas)
+
+| Severity | Issue | Deduction |
+|----------|-------|-----------|
+| Critical | Syntax errors / does not run | -100 |
+| Critical | Hardcoded passwords in script | -30 |
+| Critical | Hardcoded absolute paths (not using macros) | -20 |
+| Major | Missing script header (purpose, inputs, outputs) | -5 |
+| Major | No error checking after key operations | -5 |
+| Major | Missing `proc sort` before merge/BY processing | -5 |
+| Major | `SELECT *` in production PROC SQL | -5 |
+| Major | Missing observation count verification | -3 |
+| Minor | Missing date formats on date variables | -2 |
+| Minor | Missing variable labels | -2 |
+| Minor | Commented-out dead code blocks | -1 |
 
 ## Manuscript (.tex)
 

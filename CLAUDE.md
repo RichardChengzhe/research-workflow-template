@@ -116,6 +116,7 @@ python scripts/quality_score.py FILE  # Quality score
 | `/learn [name]` | Extract reusable skill |
 | `/stata-execution` | Stata execution on Windows: batch mode, MCP, pitfalls |
 | `/stata-workflow` | Stata patterns: panel data, reghdfe, esttab, merges |
+| `/sas [script]` | SAS execution: local batch, WRDS remote, log reading, debugging |
 | `/fix-code [script]` | Adversarial code quality loop (critic -> fixer -> re-review) |
 | `/fix-manuscript [file]` | Adversarial proofreading loop on .tex files |
 | `/fix-output` | Adversarial AEA formatting loop on tables/figures |

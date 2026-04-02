@@ -2,9 +2,10 @@
 paths:
   - "code/**/*.py"
   - "code/**/*.do"
+  - "code/**/*.sas"
 ---
 
-# Python & Stata Code Conventions
+# Python, Stata & SAS Code Conventions
 
 ## Python Standards
 
@@ -81,3 +82,49 @@ set more off
 - Scripts are run via `run_all.sh` which captures logs to `output/logs/`
 - Use `display` for key intermediate results
 - Use `timer on/off` for performance-critical sections
+
+## SAS Standards
+
+### Header (every .sas file)
+```sas
+/* ==============================================================================
+ * [Step NN]: [Descriptive Title]
+ *
+ * Purpose: [What this script does]
+ * Inputs:  [Data files/libraries read]
+ * Outputs: [Datasets/files created]
+ * Dependencies: [Upstream scripts, WRDS access needed?]
+ * ============================================================================== */
+```
+
+### Path & Credential Management
+- Use macro variables for project paths: `%let projroot = ...;`
+- Libnames via macros: `libname raw "&projroot/data/raw";`
+- NEVER hardcode passwords — use autoexec.sas (gitignored) or environment variables
+- NEVER hardcode absolute paths in production scripts
+
+### WRDS Connection
+- Use `rsubmit`/`endrsubmit` for remote execution
+- Use `proc upload`/`proc download` for file transfer
+- Reference WRDS macros via `%include '/wrds/...'` on the remote server
+- Always `signoff` when done
+
+### Data Management
+- PROC SQL: always name columns explicitly (no `SELECT *` in production)
+- PROC SORT NODUPKEY before merge BY variables
+- Verify observation counts after key operations: `proc sql; select count(*) from ...;`
+- Handle SAS missing values explicitly (missing < any number)
+- Use `label` statements for created variables
+- Format dates: `format datadate date9.;`
+
+### Output
+- CSV: `proc export dbms=csv putnames=yes;`
+- Excel: `proc export dbms=xlsx replace;`
+- Stata: `proc export dbms=stata replace;`
+- SAS datasets for intermediate results in `data/processed/`
+
+### Logging
+- Run via `run_all.sh` which captures the SAS log to `output/logs/`
+- ALWAYS check the log for `ERROR:` and `WARNING:` lines
+- SAS exit codes are unreliable — the log is the only trustworthy indicator
+- Use `%put NOTE:` for key intermediate results
