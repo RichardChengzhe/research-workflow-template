@@ -31,7 +31,7 @@ explorations/
 
    - **Graduate to production** -- copy to `code/python/`, `code/stata/`; requires quality >= 80, scripts run clean, code clear. Move to `ARCHIVE/completed_[project]/`
    - **Keep exploring** -- document next steps in README
-   - **Abandon** -- move to `ARCHIVE/abandoned_[project]/` with explanation
+   - **Abandon** -- move to `ARCHIVE/abandoned_[project]/`; fill in `templates/archive-readme.md` documenting what was tried, why it didn't work, and learnings
 
 ## Graduate Checklist
 

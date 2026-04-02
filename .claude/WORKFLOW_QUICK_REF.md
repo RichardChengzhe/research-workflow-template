@@ -47,6 +47,20 @@ Repeat
 
 ---
 
+## Adversarial QA
+
+Critic-fixer pairs auto-fix mechanical issues, flag substantive issues for you:
+
+| Command | What It Fixes |
+|---------|--------------|
+| `/fix-code [script]` | Headers, paths, labels, formatting |
+| `/fix-manuscript [file]` | Grammar, typos, consistency |
+| `/fix-output` | AEA table/figure formatting |
+
+Fixers NEVER change empirical results, specifications, or research claims.
+
+---
+
 ## Non-Negotiables
 
 - **Relative paths only** -- globals defined in `code/stata/00_run.do` for Stata

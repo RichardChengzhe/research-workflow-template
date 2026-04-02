@@ -61,3 +61,7 @@ scratch/
 *.swp
 *.swo
 *~
+
+# Personal / machine-specific (not shared)
+personal-memory.md
+CLAUDE.local.md

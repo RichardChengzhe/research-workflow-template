@@ -3,7 +3,7 @@
 A combined research project workflow for empirical economics/finance using **Python + Stata**, with AI-assisted development via Claude Code.
 
 Combines infrastructure from:
-- **[pedrohcgs template](https://github.com/pedrohcgs/my-project)**: Plan-first workflow, quality gates, orchestrator mode, context survival hooks, review agents, [LEARN] memory system
+- **[pedrohcgs template](https://github.com/pedrohcgs/claude-code-my-workflow)**: Plan-first workflow, quality gates, orchestrator mode, context survival hooks, review agents, [LEARN] memory system
 - **[Research-Project-Flow](https://github.com/Black-JL/Research-Project-Flow)**: Pipeline management, `run_all.sh`, `params.do`, break-the-glass guardrails, session commands
 
 ## Quick Start
@@ -42,8 +42,8 @@ project-root/
 │   ├── settings.json            # Permissions and hooks
 │   ├── WORKFLOW_QUICK_REF.md    # Contractor model quick reference
 │   ├── rules/        (14)       # Path-scoped behavioral rules
-│   ├── agents/       (4)        # Specialized review agents
-│   ├── skills/       (21)       # Slash commands (/run, /check, /status, etc.) + Stata skills
+│   ├── agents/       (8)        # Specialized review + fixer agents
+│   ├── skills/       (24)       # Slash commands (/run, /check, /fix-code, etc.) + Stata skills
 │   └── hooks/        (7)        # Automation hooks
 │
 ├── code/
@@ -72,7 +72,7 @@ project-root/
 ├── quality_reports/             # Plans, session logs, specs, merge reports
 ├── explorations/                # Research sandbox (60/100 threshold)
 ├── scripts/                     # Utility scripts (quality_score.py)
-├── templates/                   # Session log, quality report templates
+├── templates/                   # Session log, quality report, archive, governance templates
 ├── session_logs/                # Session handoff logs
 ├── master_supporting_docs/      # Papers and reference materials
 └── scratch/                     # Temporary work (gitignored)
@@ -110,6 +110,7 @@ Your instruction
 | **Quality gates** | 80 = commit, 90 = PR ready, 95 = excellence |
 | **Break the glass** | STOP and warn before changing pipeline structure or params |
 | **Pipeline tracing** | Check upstream/downstream before modifying any script |
+| **Adversarial QA** | Critic-fixer loops auto-fix mechanical issues; substantive -> human |
 | **[LEARN] tags** | Capture reusable knowledge in MEMORY.md |
 
 ### Skills (Slash Commands)
@@ -135,6 +136,9 @@ Your instruction
 | `/review-paper [file]` | Comprehensive manuscript review |
 | `/context-status` | Session health check |
 | `/learn [name]` | Extract reusable skill |
+| `/fix-code [script]` | Adversarial code quality loop (critic -> fixer) |
+| `/fix-manuscript [file]` | Adversarial proofreading loop |
+| `/fix-output` | AEA table/figure formatting loop |
 
 ### Review Agents
 
@@ -144,6 +148,10 @@ Your instruction
 | **code-reviewer** | 8-lens code quality: structure, reproducibility, data management, correctness |
 | **proofreader** | Grammar, typos, overflow, consistency, academic quality |
 | **verifier** | End-to-end verification: scripts run, logs clean, manuscript compiles |
+| **code-fixer** | Implements mechanical fixes from code-reviewer reports |
+| **manuscript-fixer** | Applies approved proofreader fixes to .tex files |
+| **output-critic** | AEA style compliance for tables and figures |
+| **output-fixer** | Fixes table formatting and figure references |
 
 ### Hooks (Automatic)
 
@@ -224,5 +232,5 @@ MIT — use freely for your own research projects.
 ## Credits
 
 Built by combining:
-- [pedrohcgs/my-project](https://github.com/pedrohcgs/my-project) — Academic workflow template with quality gates and review agents
+- [pedrohcgs/claude-code-my-workflow](https://github.com/pedrohcgs/claude-code-my-workflow) — Academic workflow template with quality gates and review agents
 - [Black-JL/Research-Project-Flow](https://github.com/Black-JL/Research-Project-Flow) — Research project structure with pipeline management

@@ -3,6 +3,11 @@
 Save reusable knowledge here with `[LEARN:category]` tags.
 Review before starting tasks. Keep under 200 lines.
 
+## About This File
+
+This is the **shared** project memory (committed to git).
+Machine-specific paths and personal preferences go in `personal-memory.md` (gitignored).
+
 ---
 
 ## Workflow Patterns

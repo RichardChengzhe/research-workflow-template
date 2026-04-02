@@ -18,6 +18,7 @@ At the start of every session, run `/status` silently to orient yourself. Tell t
 - **Quality gates** -- nothing ships below 80/100
 - **[LEARN] tags** -- when corrected, save `[LEARN:category] wrong -> right` to MEMORY.md
 - **Pipeline tracing** -- before modifying any script, trace upstream/downstream dependencies
+- **Adversarial QA** -- critic-fixer loops auto-fix mechanical issues; substantive issues go to human
 
 ---
 
@@ -28,6 +29,7 @@ At the start of every session, run `/status` silently to orient yourself. Tell t
 - Check `code/stata/params.do` before using hardcoded values. Values must match pipeline docs.
 - **Break the glass.** STOP and warn the user before changing: the I/O graph (which scripts exist, what they read/write), the pipeline order in `00_run.do` or `run_all.sh`, research parameters in `params.do`, or `CLAUDE.md`. Say exactly what you plan to change and what it affects downstream. Do not proceed until the user confirms.
 - Never present uncertain results with confidence. Flag uncertainty.
+- See `templates/constitutional-governance.md` for formal project governance (optional).
 - Pipeline tracing: before modifying a script, check upstream inputs and downstream consumers.
 
 ## Key Files
@@ -114,6 +116,9 @@ python scripts/quality_score.py FILE  # Quality score
 | `/learn [name]` | Extract reusable skill |
 | `/stata-execution` | Stata execution on Windows: batch mode, MCP, pitfalls |
 | `/stata-workflow` | Stata patterns: panel data, reghdfe, esttab, merges |
+| `/fix-code [script]` | Adversarial code quality loop (critic -> fixer -> re-review) |
+| `/fix-manuscript [file]` | Adversarial proofreading loop on .tex files |
+| `/fix-output` | Adversarial AEA formatting loop on tables/figures |
 
 ## Research Design Summary
 
