@@ -387,12 +387,15 @@ RD = coalesce(xrd/sale, 0);         /* R&D intensity */
 | `ERROR: BY variables are not sorted` | Data not sorted before merge/BY | Add `proc sort` before |
 | `WARNING: Multiple lengths specified` | Inconsistent lengths in SET/MERGE | Use LENGTH statement before SET |
 | `NOTE: MERGE with repeats` | Many-to-many merge | Check merge keys are unique |
+| `WARNING: PROC DOWNLOAD must be invoked with the RSUBMIT command` | `proc download`/`proc upload` placed outside `rsubmit` block | Move inside `rsubmit`/`endrsubmit` |
+| `ERROR: File WORK.xxx.DATA does not exist` after download | Download failed — data never reached local session | Verify `proc download` is inside `rsubmit` block |
 | `ERROR: Connect: ... timed out` | WRDS connection issue | Check VPN, retry `signon` |
 
 ### WRDS Connection Troubleshooting
 
 1. **Timeout:** Check VPN is connected. WRDS requires institutional network or VPN.
-2. **Auth failure:** Verify credentials. WRDS password may have expired.
+2. **Duo authentication:** WRDS requires Duo 2FA push on the first connection each day. Remind user to approve on phone. Subsequent connections the same day skip Duo.
+3. **Auth failure:** Verify credentials. WRDS password may have expired.
 3. **Library not found:** WRDS paths change. Check current paths at wrds-www.wharton.upenn.edu.
 4. **Quota exceeded:** Clear files from `/scratch/` or `/home/` on WRDS.
 5. **Session dropped:** Use `signon` to reconnect. Check `%sysfunc(attrn(WRDS, id))`.
