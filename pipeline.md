@@ -16,7 +16,8 @@ project-root/
 │   └── processed/  <- Created by scripts
 ├── code/
 │   ├── stata/      <- Stata .do files (numbered pipeline steps)
-│   └── python/     <- Python scripts
+│   ├── python/     <- Python scripts
+│   └── sas/        <- SAS .sas programs (WRDS queries, data prep)
 ├── output/         <- ALL generated outputs
 │   ├── logs/       <- Execution logs (from run_all.sh)
 │   ├── figures/    <- Plots for manuscript
