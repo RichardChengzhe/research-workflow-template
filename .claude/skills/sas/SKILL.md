@@ -74,7 +74,105 @@ grep -B2 -A5 "^ERROR" output/logs/script_name*.log
 
 ## 2. WRDS Remote SAS Execution
 
-### Connection Setup
+### 2.0 Choose the right path: SSH + qsas (default for heavy jobs) vs rsubmit (short interactive)
+
+| Workload | Use | Reason |
+|---|---|---|
+| Heavy job: TAQ pulls, long CTM loops, large rsubmit bodies (>5 KB / >=100 lines), macros with control flow + hash + prxnext, >5 min expected runtime | **SSH + `qsas`** (Section 2.1) | SAS/CONNECT `rsubmit` with a long body **deadlocks** during WRDS autoexec streaming (TBUFSIZE/TCPMSGLEN buffer exhaustion; SAS-documented). Log freezes at exactly 65,536 bytes mid-word at TAQ libref Physical Name. qsas runs on WRDS compute node directly, no client buffer involved. |
+| Short diagnostic / schema probe / small extraction (<=100 lines of rsubmit body, <5 min runtime) | **`rsubmit` from local PC-SAS** (Section 2.2) | Simpler iteration, no file upload step |
+
+**Empirically observed:** A long rsubmit body (>500 lines) hung repeatedly on the same code; interleaved short healthchecks passed cleanly; the same code ran successfully via `qsas`. SAS's TBUFSIZE docs explicitly document this failure mode.
+
+### 2.1 SSH + qsas path (RECOMMENDED for heavy WRDS jobs)
+
+The SAS script runs ENTIRELY on WRDS compute. No `signon`/`rsubmit`/`signoff` wrapping — the script is plain SAS code using the auto-assigned librefs (crsp, comp, taqmsec, wrdsapps, etc.).
+
+**Windows workflow with PuTTY** (plink + pscp, password auth):
+
+```bash
+# Get the host fingerprint by running ssh-keyscan once (verify against WRDS docs)
+HOSTKEY=SHA256:YOUR_VERIFIED_HOSTKEY_HERE
+WRDS_USER=your_wrds_username
+WRDS_HOME=/home/INSTITUTION/your_wrds_username   # e.g., /home/tulane/cli33
+
+# Retrieve password from local autoexec.sas (or env)
+PW=$(grep wrds_pass autoexec.sas | sed 's/.*= *//;s/;.*//;s/ //g;s/"//g;s/'\''//g')
+
+# 1) Upload the .sas file
+pscp -pw "$PW" -hostkey "$HOSTKEY" code/sas/myjob.sas ${WRDS_USER}@wrds-cloud.wharton.upenn.edu:${WRDS_HOME}/
+
+# 2) Submit via qsas. Duo push required on first signon of the day.
+plink -ssh -pw "$PW" -hostkey "$HOSTKEY" ${WRDS_USER}@wrds-cloud.wharton.upenn.edu "qsas myjob.sas"
+
+# 3) Monitor. Job runs on SGE; qstat shows state qw (queued) / r (running) / empty (done).
+plink -ssh -pw "$PW" -hostkey "$HOSTKEY" ${WRDS_USER}@wrds-cloud.wharton.upenn.edu "qstat -u $WRDS_USER"
+
+# 4) After completion: download SAS log + output CSVs
+pscp -pw "$PW" -hostkey "$HOSTKEY" ${WRDS_USER}@wrds-cloud.wharton.upenn.edu:${WRDS_HOME}/myjob.log output/logs/
+pscp -pw "$PW" -hostkey "$HOSTKEY" ${WRDS_USER}@wrds-cloud.wharton.upenn.edu:${WRDS_HOME}/myjob_out/*.csv data/processed/
+```
+
+**Script pattern for SSH/qsas jobs** (no rsubmit; just plain SAS):
+
+```sas
+/* myjob.sas — runs directly on WRDS compute node via qsas */
+
+%let outdir = ~/myjob_out;  /* NOTE: SAS may or may not expand ~; use $HOME or absolute path below */
+
+/* Step 1: do work using auto-assigned librefs */
+proc sql;
+  create table work.result as
+  select ... from crsp.dsf ... ;
+quit;
+
+/* Step 2: export. Use absolute path (~ may not expand in SAS). */
+proc export data=work.result
+  outfile="/home/INSTITUTION/your_wrds_username/myjob_out/result.csv"
+  dbms=csv replace; putnames=yes;
+run;
+```
+
+**qsas gotchas:**
+- `qsas` wrapper runs `qsub -S /bin/bash -cwd -o /dev/null -e /dev/null -N <scriptname>` internally. Both stdout and stderr are discarded — you only see errors through SAS's log file (written alongside the .sas in cwd).
+- If SAS crashes BEFORE writing a log (exit code != 0-7), use `qsub ... -o out.txt -e err.txt` directly instead of `qsas`, so stdout/stderr land in files.
+- Login node (`wrds-cloud-login1-w`) blocks direct `sas` calls — "Please run qsas or qsub to submit a SAS job."
+- WRDS home is `/home/INSTITUTION/your_username` (find your institution name with `pwd` after SSH). The `~` shortcut sometimes expands; sometimes doesn't — prefer absolute paths.
+- TAQMSEC subscription years vary by institution — check what your school subscribes to before assuming year coverage.
+- Mid-run diagnostic: `qacct -j <jobid>` gives `exit_status`, `ru_wallclock`, `start_time`, `end_time` after a job ends (stays in accounting for ~24h).
+- Cancel a running job: `qdel <jobid>`.
+- **`exit 112` + `ru_wallclock < 1s` + NO .log + empty stderr** = SAS **WORK-library permission / kernel init** failure on that compute node. The retry wrapper (see below) captures the actual SAS error to stdout. Real error pattern:
+  ```
+  ERROR: User does not have appropriate authorization level for library WORK.
+  ERROR: Path: /sastemp/SAS_work<hash>_wrds-sasNN-w.wharton.private.
+  ERROR: (SASXKINI): PHASE 3 KERNEL INITIALIZATION FAILED.
+  ```
+  **Root cause: node-specific `/sastemp/` permissions broken on that compute host.** A retry wrapper alone does NOT help because SGE re-runs all retries on the **same allocated node**. The fix is to **resubmit with host exclusion**:
+  ```bash
+  qsub ... -l h=!wrds-sasNN-w.wharton.private ...
+  ```
+  If you hit this on multiple nodes, chain exclusions: `-l 'h=!wrds-sas24-w.wharton.private&!wrds-sas30-w.wharton.private'`.
+
+**Auto-retry wrapper for batch SAS jobs** (`code/sas/sas_retry_wrapper.sh` in this template):
+
+```bash
+# Submit with wrapper for automatic retry on exit-112 (SAS kernel init failures)
+# The wrapper retries up to 3 times with 60s backoff if exit is NOT in {0,1,2}.
+echo "source /gridware/sge/default/common/settings.sh; ~/sas_retry_wrapper.sh ~/myjob.sas" | \
+  qsub -S /bin/bash -cwd -o ~/myjob_out.txt -e ~/myjob_err.txt -N myjob -l m_mem_free=10G
+```
+
+The wrapper handles SAS exit codes:
+- `0, 1, 2`: pass-through (success, warnings, or SAS-level errors you want to inspect)
+- `112`: retry up to 3x with 60s backoff (transient license/init race)
+- Other: retry up to 3x (could be transient — could also be real; safe to retry once)
+
+Source: `code/sas/sas_retry_wrapper.sh` in this repo. Upload to `~/sas_retry_wrapper.sh` on WRDS once, then reuse across jobs.
+
+### 2.2 rsubmit from local PC-SAS (for SHORT queries only)
+
+Use this only for `<=100` line rsubmit bodies. See Section 2.0 for the failure mode when used for heavy jobs.
+
+#### Connection Setup
 
 WRDS uses SAS/CONNECT with TCP protocol. The connection block:
 
@@ -339,7 +437,7 @@ quit;
 %let start = -2;       /* Event window start */
 %let end = 2;          /* Event window end */
 %let minest = 120;     /* Minimum estimation observations */
-%let evtwin = %eval(&end - &start + 1);
+%let evtwin = %sysevalf(&end - &start + 1);
 
 /* Factor model estimation */
 proc reg data=work.est_period noprint outest=work.params edf;
@@ -396,9 +494,9 @@ RD = coalesce(xrd/sale, 0);         /* R&D intensity */
 1. **Timeout:** Check VPN is connected. WRDS requires institutional network or VPN.
 2. **Duo authentication:** WRDS requires Duo 2FA push on the first connection each day. Remind user to approve on phone. Subsequent connections the same day skip Duo.
 3. **Auth failure:** Verify credentials. WRDS password may have expired.
-3. **Library not found:** WRDS paths change. Check current paths at wrds-www.wharton.upenn.edu.
-4. **Quota exceeded:** Clear files from `/scratch/` or `/home/` on WRDS.
-5. **Session dropped:** Use `signon` to reconnect. Check `%sysfunc(attrn(WRDS, id))`.
+4. **Library not found:** WRDS paths change. Check current paths at wrds-www.wharton.upenn.edu.
+5. **Quota exceeded:** Clear files from `/scratch/` or `/home/` on WRDS.
+6. **Session dropped:** Use `signon` to reconnect. Check `%sysfunc(attrn(WRDS, id))`.
 
 ### Useful Diagnostics
 

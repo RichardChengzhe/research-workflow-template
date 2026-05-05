@@ -52,7 +52,18 @@ At the start of every session, run `/status` silently to orient yourself. Tell t
 
 **ALWAYS:** Read the log after every run. Check for errors, warnings, unexpected output. Report what the log shows to the user.
 
-**NEVER:** Skip reading the log. Assume a script succeeded without checking. Leave logs in `code/`.
+**NEVER:** Skip reading the log. Assume a script succeeded without checking. Leave logs in `code/` or at the project root.
+
+**SAS exit codes are unreliable.** A SAS run may return 0 while the log contains `ERROR:` lines. Always grep the log for `^ERROR` and `^WARNING` after every SAS run. See `.claude/skills/sas/SKILL.md`.
+
+## Common Anti-Patterns (Learned the Hard Way)
+
+- **Running Stata/Python/SAS directly instead of via `run_all.sh`** -- logs scatter to the project root with no timestamps and silently overwrite each other. Symptom: dozens of `*.log` files at root level. Cure: route all execution through `run_all.sh` or the MCP Stata tool.
+- **Hardcoding paths inside individual scripts** -- breaks when a coauthor runs the pipeline. Use `$root` / `$data` / `$tables` globals defined once in `code/stata/00_run.do` (Stata) or `pathlib.Path(__file__).resolve().parent.parent` (Python).
+- **Trusting a SAS exit code of 0 as success** -- SAS does not propagate runtime errors to the OS exit. A clean exit with `ERROR:` in the log = failed run with possibly wrong results.
+- **Running heavy WRDS jobs through PC-SAS `rsubmit`** -- bodies above ~100 lines deadlock during autoexec streaming (TBUFSIZE buffer exhaustion). Use SSH + `qsas` instead. See SAS skill section 2.0.
+- **Committing `autoexec.sas` with real WRDS credentials** -- the file is in `.gitignore` for a reason. If you ever see it staged, abort the commit.
+- **Editing a script without tracing its consumers** -- if `pipeline.md` says other scripts read this file's outputs, you must verify they still work after your change. Use `/check`.
 
 ## Folder Structure
 
