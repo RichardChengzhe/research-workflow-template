@@ -2,8 +2,8 @@
 name: lit-review
 description: Structured literature search and synthesis with citation extraction and gap identification
 disable-model-invocation: true
-argument-hint: "[topic, paper title, or research question]"
-allowed-tools: ["Read", "Grep", "Glob", "Write", "WebSearch", "WebFetch"]
+argument-hint: "[topic, paper title, or research question] [--no-verify]"
+allowed-tools: ["Read", "Grep", "Glob", "Write", "WebSearch", "WebFetch", "Task"]
 ---
 
 # Literature Review
@@ -99,3 +99,14 @@ Conduct a structured literature search and synthesis on the given topic.
 - **Prioritize recent work** (last 5-10 years) unless seminal papers are older.
 - **Note working papers vs published papers** -- working papers may change.
 - **Do NOT fabricate citations.** If you're unsure about a paper's details, flag it for the user to verify.
+
+## Post-Flight Verification (MANDATORY)
+
+A literature review's highest-risk content is its **citations and paraphrased findings** (paper exists, correct authors/year/venue; "Smith 2019 finds X"). Before returning the review, run the Post-Flight Verification protocol from [`.claude/rules/post-flight-verification.md`](../../rules/post-flight-verification.md):
+
+1. Extract every citation and attributed-finding claim from the draft.
+2. Write one specific verification question per claim (name the source explicitly).
+3. Spawn `claim-verifier` via `Task` with `subagent_type=claim-verifier` and `context=fork`, passing the claims + verification questions + any candidate source URLs. The fresh fork is the CoVe independence trick — the verifier never sees the draft.
+4. Reconcile: PASS -> return as-is; PARTIAL -> flag unverified citations; FAIL -> regenerate the affected entries (max 2 attempts) before surfacing a warning.
+
+Opt-out: `--no-verify` skips Post-Flight (use only when you are reading the sources yourself).

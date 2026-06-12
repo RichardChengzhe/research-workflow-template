@@ -81,6 +81,42 @@ MSYS_NO_PATHCONV=1 "$STATA_PATH" /e do "$script_path"
 
 Note: Stata still detaches (returns immediately). The `tee` captures nothing because `/e` writes to its own log file, not stdout.
 
+### Windows batch gotchas (read before any scripted Stata run)
+
+Three independent failure modes silently break scripted/async Stata runs on Windows. All three can occur together; fix all three.
+
+**(a) Git Bash needs BOTH `MSYS_NO_PATHCONV=1` AND `cygpath -w` on any pwd-derived path.**
+These are two distinct issues:
+- Without `MSYS_NO_PATHCONV=1`, MSYS rewrites the `/e` flag into a path (e.g. `E:/`) and Stata reports the flag as an unrecognized command.
+- `MSYS_NO_PATHCONV=1` only suppresses MSYS's *own* conversion — it does **not** convert pwd output. Stata.exe is a Windows binary and does **not** understand an MSYS-style path like `/e/proj/code/x.do`; it fails with `r(601) file not found` after printing only the license banner, **and exits 0** (a known Windows batch quirk). An upstream caller then sees "success" while no work was done.
+
+```bash
+# CORRECT: suppress MSYS conversion AND convert the path to Windows form
+SCRIPT_WIN=$(cygpath -w "$(pwd)/code/path/to/script.do")
+MSYS_NO_PATHCONV=1 "$STATA_PATH" -e do "$SCRIPT_WIN" 2>&1
+```
+
+> Diagnostic: if batch exits 0 but the Stata-side `.log` (in the cwd) contains only the license banner, that's the `r(601)` silent path-conversion failure — fix the `cygpath -w`. The same `cygpath -w` rule applies to SAS `-sysin`/`-log`/`-print` paths on Git Bash.
+
+**(b) Use the `-e` flag, NOT `-b`, for Windows batch.**
+On Windows, `-b do` pops a GUI completion modal that must be clicked before Stata exits. This blocks the Bash tool's async detection, subagent loops, and CI — the process appears to run indefinitely. `-e do` ("execute and exit") runs in batch and exits cleanly with no dialog; both flags write a `.log` in the cwd. This is a launcher-flag fix, not an in-script fix.
+
+```bash
+# GOOD: -e exits cleanly, no modal
+MSYS_NO_PATHCONV=1 "$STATA_PATH" -e do "$SCRIPT_WIN"
+# BAD: -b pops a modal that blocks async/CI detection
+```
+
+For guaranteed blocking + correct async exit notification, wrap in PowerShell `Start-Process ... -Wait` (see Option A above). Authoritative basis: the Stata manual (GSW Appendix B) documents `/e` as batch mode "without prompting when [the] Stata command has completed," whereas `/b` notifies the user with a flashing taskbar icon on completion.
+
+**(c) End every `.do` with `exit, clear STATA`.**
+This forces a clean process exit even when an internal error leaves the script mid-stream (wrap long loops in `capture { ... }` so the final `exit` is always reached). Belt-and-suspenders: it does **not** by itself suppress the `-b` modal — only switching the launcher flag to `-e` does that — but it guarantees the process terminates rather than hanging on an interactive prompt.
+
+```stata
+* ... at the very end of every batch .do file ...
+exit, clear STATA
+```
+
 ## Syntax Pitfalls
 
 ### 1. Block comments inside line comments -- CRITICAL

@@ -72,3 +72,8 @@ scratch/
 # Personal / machine-specific (not shared)
 personal-memory.md
 CLAUDE.local.md
+
+# Generated report artifacts (HTML report-lib output is regenerated, not tracked)
+output/*.html
+output/**/*Report*.html
+*_report_lib_smoke.html

@@ -2,8 +2,8 @@
 name: interview-me
 description: Interactive interview to formalize a research idea into a structured specification with hypotheses and empirical strategy
 disable-model-invocation: true
-argument-hint: "[brief topic or 'start fresh']"
-allowed-tools: ["Read", "Write"]
+argument-hint: "[brief topic or 'start fresh'] [--no-verify]"
+allowed-tools: ["Read", "Write", "Task"]
 ---
 
 # Research Interview
@@ -51,3 +51,14 @@ Produce a **Research Specification Document** and save to `quality_reports/resea
 - **Probe weak spots gently.**
 - **Build on answers.**
 - **Know when to stop.**
+
+## Post-Flight Verification (MANDATORY when the spec cites sources)
+
+If the Research Specification Document references **any papers, datasets, or institutional facts** asserted as true, run the Post-Flight Verification protocol from [`.claude/rules/post-flight-verification.md`](../../rules/post-flight-verification.md) before handing the spec back:
+
+1. Extract every citation / dataset / factual claim the spec asserts (skip the user's own opinions and forward-looking design choices).
+2. Write one specific verification question per claim.
+3. Spawn `claim-verifier` via `Task` with `subagent_type=claim-verifier` and `context=fork`, passing the claims + questions + source pointers. The fresh fork is the CoVe independence trick.
+4. Reconcile: PASS -> return as-is; PARTIAL -> flag unverified claims; FAIL -> correct the affected text (max 2 attempts) before surfacing a warning.
+
+Opt-out: `--no-verify` skips Post-Flight. If the spec cites no external sources, Post-Flight is a no-op.

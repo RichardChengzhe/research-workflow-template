@@ -2,8 +2,8 @@
 name: research-ideation
 description: Generate structured research questions, testable hypotheses, and empirical strategies from a topic or dataset
 disable-model-invocation: true
-argument-hint: "[topic, phenomenon, or dataset description]"
-allowed-tools: ["Read", "Grep", "Glob", "Write"]
+argument-hint: "[topic, phenomenon, or dataset description] [--no-verify]"
+allowed-tools: ["Read", "Grep", "Glob", "Write", "Task"]
 ---
 
 # Research Ideation
@@ -45,3 +45,14 @@ Generate structured research questions, testable hypotheses, and empirical strat
 - **Think like a referee.** For each causal question, immediately identify the identification challenge.
 - **Consider data availability.** A brilliant question with no available data is not actionable.
 - **Suggest specific datasets** where possible.
+
+## Post-Flight Verification (MANDATORY)
+
+The highest-risk claims here are **negative-literature claims** ("no prior work studies X"), **dataset-structure claims** ("this panel has fields Y"), and **estimator-feasibility claims** — all easy to assert and easy to get wrong. Before returning the ideation memo, run the Post-Flight Verification protocol from [`.claude/rules/post-flight-verification.md`](../../rules/post-flight-verification.md):
+
+1. Extract every existence / negative-literature / dataset / feasibility claim from the draft.
+2. Write one specific, source-naming verification question per claim.
+3. Spawn `claim-verifier` via `Task` with `subagent_type=claim-verifier` and `context=fork`, handing it the claims + questions + source pointers. The forked fresh context is the CoVe independence trick.
+4. Reconcile: PASS -> return as-is; PARTIAL -> flag unverified claims; FAIL -> regenerate the affected items (max 2 attempts) before surfacing a warning.
+
+Opt-out: `--no-verify` skips Post-Flight (use only when you are checking the literature yourself).

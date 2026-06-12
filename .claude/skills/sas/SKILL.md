@@ -93,7 +93,7 @@ The SAS script runs ENTIRELY on WRDS compute. No `signon`/`rsubmit`/`signoff` wr
 # Get the host fingerprint by running ssh-keyscan once (verify against WRDS docs)
 HOSTKEY=SHA256:YOUR_VERIFIED_HOSTKEY_HERE
 WRDS_USER=your_wrds_username
-WRDS_HOME=/home/INSTITUTION/your_wrds_username   # e.g., /home/tulane/cli33
+WRDS_HOME=/home/INSTITUTION/your_wrds_username   # e.g., /home/myuniv/jdoe
 
 # Retrieve password from local autoexec.sas (or env)
 PW=$(grep wrds_pass autoexec.sas | sed 's/.*= *//;s/;.*//;s/ //g;s/"//g;s/'\''//g')
@@ -549,3 +549,87 @@ run;
    - Observation counts
    - Any warnings
    - Output files created
+
+---
+
+## 7. WRDS Data Currency & Queue Management
+
+These four lessons prevent the most common silent failures on a shared WRDS Cloud install: stale data cut-offs, queue starvation, refresh-lagged metadata, and quota-killed jobs.
+
+### 7.1 Modern (CIZ / v2) tables can reach a later year than legacy + link tables
+
+At a given institution the **legacy** CRSP/TAQ tables and their **link** tables are often capped at an earlier year-end than the **modern CRSP v2 / CIZ ("SIZ"/"CIZ")** tables. Before choosing a source for a recent-year extension, **check `max(date)` on BOTH** the legacy and the v2 table — do not assume they share the same cut-off.
+
+Typical pattern (verify the exact dates on your own install — these tables drift each refresh):
+
+| Family | Often capped earlier | Often reaches a later year |
+|---|---|---|
+| Monthly stock file | legacy monthly file (legacy `ShrOut`) | CRSP v2 monthly query (`*_msfv2_query` / `msf_v2`) |
+| Security names | legacy `stocknames` / `msenames` | `stocknames_v2`, `stksecurityinfohist` |
+| TAQ → CRSP link | legacy ticker-TAQ link table | (no v2 link — build one, see below) |
+
+When the **link** table is the stale one (no v2 link exists), build a recent-year link from the **last available snapshot** of the legacy link, keep only identifiers that are **active in the v2 stock file** for the target year, and patch the residual gap via a v2 ticker map. Do NOT forward-fill blindly past the legacy cut-off and call it "validated."
+
+```sas
+/* Probe BOTH cut-offs before committing to a source */
+proc sql;
+  select max(date)   as legacy_max format=date9. from <legacy_table>;
+  select max(MthCalDt) as v2_max    format=date9. from <crsp_v2_query>;
+quit;
+```
+
+**Where the results land:** many WRDS query results (`proc print`, `proc contents`, `proc sql` SELECT to the listing) write to the **`.lst` listing file, NOT the `.log`**. If you only fetch the `.log` you will see "no errors" and zero output. Transfer the `.lst` (or redirect with `proc printto`) to actually read query results.
+
+### 7.2 `qhold` to promote a critical-path job past queued lower-priority jobs
+
+A scheduler that runs FIFO within a priority class will run an earlier-submitted but now-optional job ahead of a later-submitted critical-path job. **`qhold <jobid>`** moves your own queued (`qw`) jobs to held (`hqw`) so they release their place; your critical job then takes the next free slot. Release with **`qrls`** once the critical job has *started*.
+
+```bash
+# Your critical job is 3rd in qw behind two of your own now-optional jobs:
+plink ... "qhold <optional_jobid_1> <optional_jobid_2>"   # -> hqw; critical job is now next
+# ... critical job starts ...
+plink ... "qrls  <optional_jobid_1> <optional_jobid_2>"   # back to qw at original priority
+```
+
+- Works at **user level** (no operator privileges); affects only your own jobs — never use it to jump ahead of other users.
+- Auto-release pattern: in a polling loop, `qrls` the held jobs as soon as the critical job's state flips to running, so dependents can begin queuing.
+- Don't forget to `qrls` — held jobs sit in `hqw` indefinitely.
+
+### 7.3 Refresh-lagged metadata tables silently return 0 rows
+
+A metadata table refreshed on a quarterly cadence (e.g. the security-names table) can have `max(date)` **months behind "today."** A universe filter such as `where date_var >= mdy(1,1,<current_year>)` then matches **zero rows**, SAS processes the empty set with **no ERROR**, the job runs to "completion" in full wall time, and writes **header-only CSVs**. This burns hours and looks like success.
+
+**Guards (cheap; add to every yearly pull):**
+
+```sas
+/* 1. Probe the table's real coverage first */
+proc sql noprint; select max(end_date_var) into :maxend from <names_table>; quit;
+%put NOTE: names table max end date = &maxend;
+
+/* 2. Filter to year-1 when close to the refresh boundary; let the link join trim */
+where end_date_var >= mdy(1,1,&year - 1);
+
+/* 3. Bail out explicitly if the universe (or any inner-join filter) is empty */
+proc sql noprint; select count(*) into :n_univ from work.universe; quit;
+%if &n_univ = 0 %then %do;
+    %put ERROR: universe is empty -- check table refresh cut-off vs requested year.;
+    %abort cancel;
+%end;
+```
+
+Check the sister table (e.g. the monthly-names table) too — it shares the same refresh timing.
+
+### 7.4 Default ALL intermediates to scratch, never the home quota
+
+Home (`/home/<institution>/<user>`) typically has a **small hard quota** (e.g. ~10 GB); scratch (`/scratch/...`) is **large** (e.g. ~500 GB). When the home quota is exhausted, SAS write failures are **silent** (no ERROR; jobs die mid-run leaving 0-byte outputs), and even a local file transfer **into** a full destination writes a **0-byte file without erroring**. A single quota event can wipe out days of compute.
+
+**Rules:**
+- Point every SAS work dir, intermediate `.sas7bdat`, job script, `.log`, and to-be-discarded CSV at scratch:
+  ```sas
+  %let outdir  = /scratch/<institution>/<user>/<jobname>_out;
+  %let workdir = /scratch/<institution>/<user>/<jobname>_work;
+  ```
+- Submit from scratch so the scheduler's `-cwd` log lands there: `cd /scratch/<institution>/<user> && qsas script.sas`.
+- Upload `.sas` via a streamed `cat > ...` rather than a plain copy into home (a copy into a full home quota fails silently as a 0-byte file).
+- Only a **final downloadable deliverable** belongs in home — and even then, transfer it locally and remove it from home promptly.
+- Periodically run `quota`; clean home when it climbs past ~80%.

@@ -1,119 +1,185 @@
 #!/usr/bin/env python3
 """
-Session Log Reminder Hook
+Session-Log Auto-Writer Hook (Stop)
 
-A Stop hook that tracks responses since the session log was last updated.
-After a threshold, it blocks and reminds to update the session log.
+A Stop hook that **writes** the session log instead of nagging about it.
+The previous version only emitted stderr advisories -- "consider updating the
+log" -- and left the writing to the human/agent. The modern posture is: the
+system does the bookkeeping, you do the research.
 
-Hook Event: Stop
+On each Stop, when the working tree has changed since the last auto-entry,
+it appends a structured entry to today's session log
+(quality_reports/session_logs/YYYY-MM-DD_auto.md, created if absent):
+
+  - timestamp
+  - changed files (git status --porcelain, capped)
+  - active plan + status (most recent non-completed plan)
+  - compile-completion note: any manuscript/*.tex or latex/*.tex (Beamer
+    slides) newer than its compiled .pdf. Non-blocking by default; set
+    CLAUDE_COMPILE_GATE=block to turn the note into a Stop-block that asks
+    Claude to compile before stopping.
+
+Throttling: writes only when `git status --porcelain` changed since the
+last entry (hashed in state), so a quiet turn does not spam the log.
+
+Fail-open: any error -> exit 0, never blocks Claude on a hook bug.
+
+Usage (.claude/settings.json):
+    "Stop": [{ "hooks": [{ "type": "command",
+      "command": "python \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/log-reminder.py" }] }]
 """
 
+from __future__ import annotations
+
 import json
+import os
 import sys
 import hashlib
+import re
+import subprocess
 from pathlib import Path
 from datetime import datetime
 
-THRESHOLD = 15
-STATE_DIR = Path("/tmp/claude-log-reminder")
+
+def get_state_dir() -> Path:
+    project_dir = os.environ.get("CLAUDE_PROJECT_DIR", "")
+    if not project_dir:
+        d = Path.home() / ".claude" / "sessions" / "default"
+    else:
+        h = hashlib.md5(project_dir.encode()).hexdigest()[:8]
+        d = Path.home() / ".claude" / "sessions" / h
+    d.mkdir(parents=True, exist_ok=True)
+    return d
 
 
-def get_project_dir():
+def _git(project_dir: str, *args: str) -> str:
+    try:
+        out = subprocess.run(
+            ["git", "-C", project_dir, *args],
+            capture_output=True, text=True, timeout=5,
+        )
+        return out.stdout if out.returncode == 0 else ""
+    except Exception:
+        return ""
+
+
+def active_plan(project_dir: str) -> str | None:
+    plans = Path(project_dir) / "quality_reports" / "plans"
+    if not plans.is_dir():
+        return None
+    files = sorted(plans.glob("*.md"), key=lambda f: f.stat().st_mtime, reverse=True)
+    for p in files[:3]:
+        try:
+            text = p.read_text(encoding="utf-8", errors="replace")
+        except Exception:
+            continue
+        # Parse the Status FIELD, not a whole-file substring -- a DRAFT plan that
+        # merely mentions "APPROVED"/"COMPLETED" must not be mis-labelled.
+        m = re.search(r"^\s*\**\s*status\s*\**\s*:\s*\**\s*"
+                      r"(draft|approved|completed|implemented|in[ -]?progress)",
+                      text, re.IGNORECASE | re.MULTILINE)
+        v = m.group(1).lower() if m else "in-progress"
+        if v.startswith(("completed", "implemented")):
+            continue
+        status = "APPROVED" if v.startswith("approved") else ("DRAFT" if v.startswith("draft") else "in-progress")
+        return f"{p.name} ({status})"
+    return None
+
+
+def uncompiled(project_dir: str) -> list[str]:
+    """manuscript/*.tex and latex/*.tex (Beamer slides) newer than their .pdf."""
+    flagged: list[str] = []
+    root = Path(project_dir)
+    # Both the paper (manuscript/) and the slide deck (latex/) compile to .pdf.
+    for src in (root / "manuscript", root / "latex"):
+        if not src.is_dir():
+            continue
+        for f in src.glob("*.tex"):
+            out = f.with_suffix(".pdf")
+            try:
+                if not out.exists() or f.stat().st_mtime > out.stat().st_mtime:
+                    flagged.append(f"{f.relative_to(root)} -> no fresh .pdf")
+            except Exception:
+                continue
+    return flagged
+
+
+def main() -> int:
     try:
         hook_input = json.load(sys.stdin)
     except (json.JSONDecodeError, EOFError):
         hook_input = {}
 
+    # Avoid Stop-hook loops.
     if hook_input.get("stop_hook_active", False):
-        sys.exit(0)
+        return 0
 
-    return hook_input.get("cwd", ""), hook_input
+    project_dir = os.environ.get("CLAUDE_PROJECT_DIR", "") or hook_input.get("cwd", "")
+    if not project_dir or not Path(project_dir).is_dir():
+        return 0
 
+    status = _git(project_dir, "status", "--porcelain")
+    if not status.strip():
+        return 0  # nothing changed -- nothing to log
 
-def get_state_path(project_dir: str) -> Path:
-    project_hash = hashlib.md5(project_dir.encode()).hexdigest()[:12]
-    return STATE_DIR / f"{project_hash}.json"
-
-
-def load_state(state_path: Path) -> dict:
+    state_path = get_state_dir() / "session-log-state.json"
+    status_hash = hashlib.md5(status.encode()).hexdigest()
     try:
-        return json.loads(state_path.read_text())
-    except (FileNotFoundError, json.JSONDecodeError):
-        return {"counter": 0, "last_mtime": 0.0, "reminded": False, "no_log_reminded": False}
+        prev = json.loads(state_path.read_text()).get("last_hash")
+    except Exception:
+        prev = None
+    if status_hash == prev:
+        return 0  # already logged this exact change-set
 
-
-def save_state(state_path: Path, state: dict):
-    STATE_DIR.mkdir(parents=True, exist_ok=True)
-    state_path.write_text(json.dumps(state))
-
-
-def find_latest_log(project_dir: str) -> tuple:
-    # Check both session_logs/ and quality_reports/session_logs/
-    for log_dir_name in ["session_logs", "quality_reports/session_logs"]:
-        log_dir = Path(project_dir) / log_dir_name
-        if not log_dir.is_dir():
-            continue
-        md_files = list(log_dir.glob("*.md"))
-        if md_files:
-            latest = max(md_files, key=lambda f: f.stat().st_mtime)
-            return latest, latest.stat().st_mtime
-
-    return None, 0.0
-
-
-def main():
-    project_dir, hook_input = get_project_dir()
-    if not project_dir:
-        sys.exit(0)
-
-    state_path = get_state_path(project_dir)
-    state = load_state(state_path)
-
-    latest_log, current_mtime = find_latest_log(project_dir)
+    logs = Path(project_dir) / "quality_reports" / "session_logs"
+    logs.mkdir(parents=True, exist_ok=True)
     today = datetime.now().strftime("%Y-%m-%d")
+    log_file = logs / f"{today}_auto.md"
+    new_file = not log_file.exists()
 
-    if latest_log is None:
-        if not state.get("no_log_reminded", False):
-            state["no_log_reminded"] = True
-            save_state(state_path, state)
-            output = {
-                "decision": "block",
-                "reason": (
-                    f"No session log exists yet. Create one at "
-                    f"session_logs/{today}_description.md "
-                    f"before continuing."
-                ),
-            }
-            json.dump(output, sys.stdout)
-        sys.exit(0)
+    changed = [ln for ln in status.splitlines() if ln.strip()][:30]
+    plan = active_plan(project_dir)
+    flagged = uncompiled(project_dir)
 
-    if current_mtime != state["last_mtime"]:
-        state = {"counter": 0, "last_mtime": current_mtime, "reminded": False, "no_log_reminded": False}
-        save_state(state_path, state)
-        sys.exit(0)
+    lines = []
+    if new_file:
+        lines.append(f"# Session Log -- {today} (auto)\n")
+        lines.append("_Auto-written by the Stop hook on each meaningful change-set. "
+                     "Narrative notes welcome alongside._\n")
+    lines.append(f"\n## {datetime.now().strftime('%H:%M')} -- {len(changed)} file(s) touched")
+    if plan:
+        lines.append(f"\n**Active plan:** {plan}")
+    lines.append("\n**Changed:**")
+    lines.extend(f"- `{ln.strip()}`" for ln in changed)
+    if flagged:
+        lines.append("\n**Uncompiled artifacts:**")
+        lines.extend(f"- {x}" for x in flagged)
+    lines.append("")
 
-    state["counter"] += 1
+    try:
+        with open(log_file, "a", encoding="utf-8") as f:
+            f.write("\n".join(lines) + "\n")
+    except Exception:
+        return 0
 
-    if state["counter"] >= THRESHOLD and not state["reminded"]:
-        state["reminded"] = True
-        save_state(state_path, state)
-        output = {
-            "decision": "block",
-            "reason": (
-                f"SESSION LOG REMINDER: {state['counter']} responses without "
-                f"updating the session log. Append your recent progress to "
-                f"{latest_log.name}."
-            ),
-        }
-        json.dump(output, sys.stdout)
-        sys.exit(0)
+    try:
+        state_path.write_text(json.dumps({"last_hash": status_hash}))
+    except Exception:
+        pass
 
-    save_state(state_path, state)
-    sys.exit(0)
+    sys.stderr.write(f"[session-log] appended {len(changed)} change(s) to {log_file.name}\n")
+
+    # Opt-in compile gate: turn the uncompiled note into a Stop-block.
+    if flagged and os.environ.get("CLAUDE_COMPILE_GATE", "") == "block":
+        reason = ("Uncompiled artifacts before stop: " + "; ".join(flagged) +
+                  ". Run /compile-latex, or set CLAUDE_COMPILE_GATE= to disable this gate.")
+        json.dump({"decision": "block", "reason": reason}, sys.stdout)
+
+    return 0
 
 
 if __name__ == "__main__":
     try:
-        main()
+        sys.exit(main())
     except Exception:
-        sys.exit(0)
+        sys.exit(0)  # fail open

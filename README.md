@@ -41,10 +41,12 @@ project-root/
 ├── .claude/                     # Claude Code infrastructure
 │   ├── settings.json            # Permissions and hooks
 │   ├── WORKFLOW_QUICK_REF.md    # Contractor model quick reference
-│   ├── rules/        (14)       # Path-scoped behavioral rules
-│   ├── agents/       (8)        # Specialized review + fixer agents
-│   ├── skills/       (25)       # Slash commands (/run, /check, /fix-code, /sas, etc.)
-│   └── hooks/        (7)        # Automation hooks
+│   ├── rules/        (31)       # Path-scoped behavioral rules
+│   ├── agents/       (16)       # Specialized review + fixer + referee agents
+│   ├── skills/       (52)       # Slash commands (/run, /check, /fix-code, /sas, etc.)
+│   ├── references/   (7)        # Shared reference docs (agent-fleet, schemas, journals)
+│   ├── output-styles/ (2)       # Output styles (academic-writing, referee)
+│   └── hooks/        (9)        # Automation hooks
 │
 ├── code/
 │   ├── stata/                   # Stata .do files (numbered pipeline steps)
@@ -142,6 +144,15 @@ Your instruction
 | `/fix-manuscript [file]` | Adversarial proofreading loop |
 | `/fix-output` | AEA table/figure formatting loop |
 
+The 52 skills above are a representative slice; the full set adds several capability families introduced in the latest sync:
+
+- **Peer review & revision** — `/review-paper`, `/seven-pass-review`, `/deep-audit`, `/respond-to-referees`, and `/verify-claims` (Chain-of-Verification), driven by `domain-referee` / `methods-referee` / `editor` and the forked `claim-verifier` agent.
+- **Reproducibility & submission** — `/replication-package` (AEA DCAS), `/capture-environment`, `/audit-reproducibility`, `/data-management-plan`, `/disclosure-check`, and `/submission-disclosures`.
+- **Causal inference** — `/did-event-study` (Callaway–Sant'Anna) and `/power-analysis` (sample size / MDE), plus `/preregister` and `/grant-proposal`.
+- **Context, memory & autonomy** — `/checkpoint`, `/compress-session`, `/promote-memory` (five-critic council), and `/diagnose`.
+- **HPC & exploration** — `/cypress` (SLURM) and `/worktree-probe` (isolated ceteris-paribus worktrees).
+- **Authoring & figures** — `/humanize`, `/slide-excellence`, `/visual-audit`, and `/build-report` (HTML results report).
+
 ### Review Agents
 
 | Agent | Purpose |
@@ -154,6 +165,14 @@ Your instruction
 | **manuscript-fixer** | Applies approved proofreader fixes to .tex files |
 | **output-critic** | AEA style compliance for tables and figures |
 | **output-fixer** | Fixes table formatting and figure references |
+| **domain-referee** | Simulated top-journal referee on identification and contribution |
+| **methods-referee** | Simulated referee focused on econometric method and inference |
+| **editor** | Reduces referee reports to an editorial decision (with a hallucination gate) |
+| **claim-verifier** | Forked CoVe verifier — checks factual claims in a fresh context |
+| **promote-memory-council** | Five-critic council that vets `[LEARN]` candidates for promotion |
+| **humanize-auditor** | Flags AI-voice tells in `.tex` / `.md` prose |
+| **slide-auditor** | Reviews Beamer decks for layout, proofing, and substance |
+| **beamer-translator** | Converts paper content into Beamer slide structure |
 
 ### Hooks (Automatic)
 
@@ -165,6 +184,10 @@ Your instruction
 | pre-compact | Before compression | Saves state (plan, decisions) for restoration |
 | post-compact-restore | After compression | Restores context from saved state |
 | log-reminder | At session stop | Reminds to update session log |
+| git-guardrails | Before Bash git ops | Blocks destructive/unsafe git commands (force-push, hard reset on shared refs) |
+| claim-reconcile | After Edit/Write | Flags manuscript claims that drifted from their reference outputs |
+
+A version-controlled `.githooks/pre-commit` gate (installed via `scripts/install-hooks.sh`) runs surface-sync + skill-integrity + a quality score on staged files before each commit.
 
 ## Customization Guide
 

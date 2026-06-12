@@ -1,0 +1,137 @@
+#!/usr/bin/env bash
+#
+# Pre-commit quality gate for the research-workflow template.
+#
+# This closes the "a direct `git commit` bypasses every gate" hole: the
+# gates that `/commit` runs (surface-sync + quality score) now run on EVERY
+# commit, not only when you go through the skill.
+#
+# Install once per clone:   ./scripts/install-hooks.sh
+# (sets core.hooksPath=.githooks so git finds this version-controlled hook.)
+#
+# It runs two gates against the STAGED changes and aborts the commit on
+# failure:
+#   1. Surface-sync (when present): count + enumerative-table-row
+#      consistency, skill integrity -- deterministic and fast. The check
+#      scripts (scripts/check-surface-sync.sh, scripts/check-skill-integrity.py)
+#      are provided by a sibling unit; if a script is ABSENT, this gate
+#      warns-and-skips that check rather than hard-failing.
+#   2. Quality score (>= 80) on staged .py / .do / .tex files with rubrics
+#      (scripts/quality_score.py).
+#
+# Cross-platform: plain bash, Git-Bash compatible on Windows. Uses `python`
+# (not `python3`) so it resolves on Windows where only `python` is on PATH;
+# falls back to `python3` if `python` is missing.
+#
+# Escape hatches (use sparingly; record the reason in the commit message):
+#   SKIP_QUALITY_GATE=1 git commit ...   # skip only the quality score
+#   git commit --no-verify ...           # skip ALL hooks (last resort)
+#
+set -uo pipefail
+
+REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null)" || {
+    echo "pre-commit: not inside a git work tree" >&2
+    exit 2
+}
+cd "$REPO_ROOT" || exit 2
+
+# Resolve a Python interpreter: prefer `python` (Windows/Git-Bash), fall back
+# to `python3` (most Unix). Used for the quality scorer + skill-integrity check.
+PY=""
+if command -v python >/dev/null 2>&1; then
+    PY=python
+elif command -v python3 >/dev/null 2>&1; then
+    PY=python3
+fi
+
+# Validate the STAGED index, not the working tree, by stashing unstaged
+# *tracked* changes -- but ONLY when it is safe. If any single file has BOTH
+# staged and unstaged changes (the `git add -p` workflow), a `stash --keep-index`
+# + `pop` round-trip can conflict and write literal conflict markers into your
+# file. In that case we skip the stash and validate the working tree as-is (with
+# a warning) rather than risk corrupting your work. Untracked files are never
+# stashed (avoids slow stashes of large data dirs). A failed pop is loud +
+# recoverable, never silently swallowed.
+_STASHED=0
+_staged="$(git diff --cached --name-only 2>/dev/null | sort)"
+_unstaged="$(git diff --name-only 2>/dev/null | sort)"
+_overlap="$(comm -12 <(printf '%s\n' "$_staged") <(printf '%s\n' "$_unstaged") | grep -c . || true)"
+if [ "${_overlap:-0}" -gt 0 ] 2>/dev/null; then
+    echo "i pre-commit: ${_overlap} file(s) have both staged and unstaged changes --" >&2
+    echo "  validating the WORKING TREE (not the pure staged index) to avoid a stash conflict." >&2
+elif [ -n "$_unstaged" ]; then
+    if git stash push --keep-index --quiet --message "pre-commit-gate" 2>/dev/null; then
+        _STASHED=1
+        trap 'if [ "$_STASHED" = "1" ]; then git stash pop --quiet 2>/dev/null || echo "WARN pre-commit: could not auto-restore unstaged changes -- recover with: git stash pop" >&2; fi' EXIT
+    fi
+fi
+
+FAIL=0
+
+echo "-- pre-commit: surface-sync gates --"
+# Surface-sync check (provided by a sibling unit). Warn-and-skip if absent.
+if [ -f scripts/check-surface-sync.sh ]; then
+    bash scripts/check-surface-sync.sh
+    [ $? -ne 0 ] && FAIL=1
+else
+    echo "  (skip) scripts/check-surface-sync.sh not present yet -- surface-sync check skipped." >&2
+fi
+# Skill-integrity check (provided by a sibling unit). Warn-and-skip if absent.
+if [ -f scripts/check-skill-integrity.py ]; then
+    if [ -n "$PY" ]; then
+        "$PY" scripts/check-skill-integrity.py
+        [ $? -ne 0 ] && FAIL=1
+    else
+        echo "  (skip) no python interpreter found -- skill-integrity check skipped." >&2
+    fi
+else
+    echo "  (skip) scripts/check-skill-integrity.py not present yet -- skill-integrity check skipped." >&2
+fi
+
+if [ "${SKIP_QUALITY_GATE:-0}" = "1" ]; then
+    echo ""
+    echo "-- pre-commit: quality gate SKIPPED (SKIP_QUALITY_GATE=1) --"
+elif [ ! -f scripts/quality_score.py ]; then
+    echo ""
+    echo "  (skip) scripts/quality_score.py not present -- quality gate skipped." >&2
+elif [ -z "$PY" ]; then
+    echo ""
+    echo "  (skip) no python interpreter found -- quality gate skipped." >&2
+else
+    # Staged, added-or-modified files that have quality rubrics (.py/.do/.tex).
+    STAGED="$(git diff --cached --name-only --diff-filter=ACM | grep -Ei '\.(py|do|tex)$' || true)"
+    if [ -n "$STAGED" ]; then
+        n="$(printf '%s\n' "$STAGED" | grep -c .)"
+        echo ""
+        echo "-- pre-commit: quality score (>= 80) on ${n} staged file(s) --"
+        # Score each file individually: portable (no mapfile/bash4), handles
+        # spaces in paths, and gives a per-file exit code we can classify.
+        while IFS= read -r f; do
+            [ -z "$f" ] && continue
+            [ -f "$f" ] || continue
+            "$PY" scripts/quality_score.py "$f"
+            rc=$?
+            # quality_score.py exits 1 when score < 80 (a syntax/compile error
+            # zeroes the score, which is also < 80 -> exit 1) or on scorer
+            # error / file-not-found. Any non-zero must block the commit.
+            if [ "$rc" -ne 0 ]; then
+                echo "x quality gate: '$f' failed (rc=$rc -- score<80, syntax failure, or scorer error)." >&2
+                FAIL=1
+            fi
+        done <<< "$STAGED"
+    else
+        echo ""
+        echo "-- pre-commit: no staged .py/.do/.tex files to score --"
+    fi
+fi
+
+if [ "$FAIL" -ne 0 ]; then
+    echo "" >&2
+    echo "x pre-commit gate failed -- commit aborted." >&2
+    echo "  Fix the findings above, or (sparingly) bypass with SKIP_QUALITY_GATE=1 / --no-verify." >&2
+    exit 1
+fi
+
+echo ""
+echo "OK pre-commit gates passed."
+exit 0

@@ -38,6 +38,8 @@ Machine-specific paths and personal preferences go in `personal-memory.md` (giti
 - [LEARN:execution] SAS exit codes lie. A clean exit can hide `ERROR:` in the log. Always `grep -c "^ERROR" <log>` after every SAS run.
 - [LEARN:execution] Stata `set more off` at the top of every .do file, or batch runs hang waiting for `--more--`.
 - [LEARN:execution] Python: use the project conda env, not system Python. Hardcode the env path in `run_all.sh` so coauthors don't import the wrong packages.
+- [LEARN:stata] Git-Bash -> Stata needs BOTH `MSYS_NO_PATHCONV=1` AND `cygpath -w` on pwd-derived paths (silent r(601) otherwise). Use `-e` (not `-b`) for Windows batch. End every `.do` with `exit, clear STATA`.
+- [LEARN:hpc] Stata-MP on a cluster needs reghdfe+ftools+estout+moremata+`require` — reghdfe silently no-ops without `require`.
 
 ## SAS / WRDS
 
@@ -47,6 +49,8 @@ Machine-specific paths and personal preferences go in `personal-memory.md` (giti
 - [LEARN:wrds] WRDS `proc upload`/`proc download` MUST be inside an `rsubmit`/`endrsubmit` block. Outside, they fail silently with a misleading error.
 - [LEARN:wrds] Tilde (`~`) does not always expand inside SAS code. Prefer absolute paths like `/home/INSTITUTION/username/...` for WRDS file output.
 - [LEARN:sas] `code/sas/sas_retry_wrapper.sh` retries SAS on exit 112 with 60s backoff (up to 3 attempts). Upload to WRDS home once, reuse across jobs.
+- [LEARN:wrds] Modern CRSP v2 / CIZ can reach a later year than legacy CRSP/TAQ link tables — check max(date) on BOTH before choosing. Some WRDS results land in `.lst`, not `.log`.
+- [LEARN:wrds] `qhold`/`qrls` promotes a critical-path job past your own queued jobs. A refresh-lagged metadata table (e.g. stocknames) can lag "today"; a `>= current_year` filter then silently returns 0 rows — guard with `>= year-1` + a bail-out.
 
 ## Anti-Patterns (avoid these)
 
@@ -59,5 +63,20 @@ Machine-specific paths and personal preferences go in `personal-memory.md` (giti
 
 - [LEARN:skills] Trigger phrases matter in skill descriptions -- include specific scenarios when skill applies.
 - [LEARN:skills] Skills need Instructions + Examples + Troubleshooting to be useful.
+
+## Git Worktrees & Parallel Exploration
+- [LEARN:worktree] Ceteris-paribus exploration on isolated git worktrees: put worktrees in a dedicated sibling dir (e.g. `<drive>:/worktrees/<repo>-<branch>`), NEVER inside a cloud-synced (Dropbox/OneDrive) repo root. Always write INTO the worktree's own path — absolute main-repo paths silently land on the wrong branch. Copy gitignored creds (autoexec.sas/.env) into the worktree; wire large gitignored data via an OS junction + hard-link (no GB duplication). One isolated change per worktree+branch; cherry-pick winners. See rules/worktree-parallel-exploration.md + skill worktree-probe.
+
+## Remote / Long-Running Jobs
+- [LEARN:remote] HPC/WRDS/batch jobs > ~10 min: never passively wait — poll via a self-paced loop or cron, download outputs before remote scratch cleanup. Under a per-job core cap, wall-time comes from MORE array tasks, not more cores/task. See rules/remote-jobs.md + skill cypress.
+
+## Data / Merge Discipline
+- [LEARN:data] A numeric `egen group` id is assigned per build — the SAME id denotes DIFFERENT entities across two builds. Key cross-build merges on the STRING identifier x date, never the numeric group id.
+- [LEARN:data] Construct rank / treatment / dummy measures AFTER all merges and control filters. Building on a broader population then dropping rows inflates group rates via sample-selection bias.
+
+## Research-Design Discipline
+- [LEARN:research] Verify a new DV/IV/measure against the published source + data docs BEFORE writing code — do not draft specifications from memory (training data is stale; citations drift).
+- [LEARN:research] Don't declare a cited resource dead on one failed fetch — run the retrieval ladder (direct -> Wayback -> headless browser -> mirrors -> author) first.
+- [LEARN:subagents] Always audit an implementer subagent with a SEPARATE model reading literal file bytes and RUNNING verification commands — never trust the implementer's self-summary.
 
 <!-- Add project-specific learnings below as you work -->

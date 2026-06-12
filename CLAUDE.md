@@ -64,12 +64,19 @@ At the start of every session, run `/status` silently to orient yourself. Tell t
 - **Running heavy WRDS jobs through PC-SAS `rsubmit`** -- bodies above ~100 lines deadlock during autoexec streaming (TBUFSIZE buffer exhaustion). Use SSH + `qsas` instead. See SAS skill section 2.0.
 - **Committing `autoexec.sas` with real WRDS credentials** -- the file is in `.gitignore` for a reason. If you ever see it staged, abort the commit.
 - **Editing a script without tracing its consumers** -- if `pipeline.md` says other scripts read this file's outputs, you must verify they still work after your change. Use `/check`.
+- **Merging two builds on the numeric `egen group` id** -- the same id denotes different entities across builds; cross-build merges must key on the STRING identifier x date.
+- **Constructing rank/treatment measures before all merges and filters** -- inflates group rates via sample-selection bias. Build them on the FINAL estimation sample.
+- **Declaring a cited URL/resource "dead" on a single failed fetch** -- escalate the retrieval ladder (Wayback -> headless browser -> mirrors -> author) before giving up.
+- **Reading the SAS `.log` when results are in `.lst`** -- some WRDS queries write results to `.lst`; a clean `.log` is not proof of success.
 
 ## Folder Structure
 
 ```
 project-root/
 ├── CLAUDE.md, MEMORY.md, pipeline.md, run_all.sh
+├── .claude/             <- Claude Code infrastructure (skills, agents, rules, hooks)
+│   ├── references/      <- Shared reference docs
+│   └── output-styles/   <- Output styles
 ├── code/stata/          <- Stata .do files (numbered pipeline steps)
 ├── code/python/         <- Python scripts
 ├── code/sas/            <- SAS .sas programs (WRDS queries, data prep)
@@ -132,6 +139,33 @@ python scripts/quality_score.py FILE  # Quality score
 | `/fix-code [script]` | Adversarial code quality loop (critic -> fixer -> re-review) |
 | `/fix-manuscript [file]` | Adversarial proofreading loop on .tex files |
 | `/fix-output` | Adversarial AEA formatting loop on tables/figures |
+| `/new-skill [name]` | Scaffold a new skill following repo conventions (interview -> SKILL.md) |
+| `/build-report` | Build an HTML results report (heatmaps + AEA tables, clickable links) |
+| `/cypress [job]` | Run Python/Stata jobs on a SLURM HPC cluster (SSH, array tasks, transfer) |
+| `/worktree-probe` | Scaffold a ceteris-paribus exploration in an isolated git worktree |
+| `/data-management-plan` | Draft a funder-compliant DMP (NSF/NIH/ERC/Horizon Europe) |
+| `/capture-environment` | Snapshot the compute environment for a replication package |
+| `/replication-package` | Assemble a submission-ready replication package (AEA DCAS / openICPSR) |
+| `/audit-reproducibility` | Cross-check manuscript numbers against actual Stata/Python/SAS outputs |
+| `/disclosure-check` | Pre-screen outputs on restricted data for disclosure-limitation issues |
+| `/submission-disclosures` | Generate the journal AI-use / CRediT / disclosure block |
+| `/did-event-study` | Staggered DiD / event study to the Callaway-Sant'Anna standard |
+| `/power-analysis` | Compute power / sample size / MDE and write a registry-ready section |
+| `/preregister` | Draft a preregistration (OSF / AsPredicted / AEA RCT) from a spec |
+| `/grant-proposal` | Scaffold a grant proposal (NSF/NIH/ERC/foundation) from primitives |
+| `/coauthor-brief` | Cross-machine, cross-person collaborator handoff brief |
+| `/respond-to-referees` | Map each referee comment to its revision in a response document |
+| `/seven-pass-review` | Seven forked adversarial review passes over a manuscript |
+| `/deep-audit` | Exhaustive adversarial audit of manuscript + repo, loops until dry |
+| `/verify-claims` | Chain-of-Verification on a draft via a forked claim-verifier agent |
+| `/humanize` | Read-only audit of .tex/.md for AI-voice tells |
+| `/slide-excellence` | Multi-agent review of a Beamer deck (layout + proofing + substance) |
+| `/visual-audit` | Adversarial legibility audit of matplotlib / Stata figures |
+| `/diagnose` | Root-cause a failing/wrong result (reproduce -> minimise -> fix loop) |
+| `/checkpoint` | Save a structured state snapshot before stopping or handing off |
+| `/compress-session` | Distill the conversation into a structured note for `quality_reports/` |
+| `/promote-memory` | Run `[LEARN]` candidates through a five-critic council before promotion |
+| `/permission-check` | Diagnose why Claude Code is (or isn't) prompting for permission |
 
 ## Research Design Summary
 

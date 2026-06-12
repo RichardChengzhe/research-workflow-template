@@ -1,0 +1,126 @@
+%% =====================================================================
+%% Generic publication-quality regression table (AEA / finance style)
+%% Conventions extracted from a mature empirical-finance manuscript.
+%%
+%% Required packages in the MAIN file preamble:
+%%   \usepackage{booktabs}        % \toprule \midrule \bottomrule
+%%   \usepackage{threeparttable}  % table + notes block
+%%   % \usepackage{dcolumn}       % optional: decimal-point alignment
+%%
+%% CONVENTIONS DEMONSTRATED BELOW
+%%   * threeparttable wraps the tabular so the Notes ride with the table.
+%%   * Full-width table: tabular*{\textwidth}{@{\extracolsep{\fill}}...}
+%%     spreads columns edge-to-edge regardless of how many there are.
+%%   * Dense body: \fontsize{10}{12}\selectfont before the tabular.
+%%   * Each estimate is TWO lines: coefficient + stars on top, ( t-stat )
+%%     on the line below.  *** t-statistics in parentheses, NOT std errors. ***
+%%   * Focal (hypothesis) terms come FIRST, then a labeled "Controls" block,
+%%     then a \midrule, then FE-indicator rows + N + adj-R^2.
+%%   * Thousands use a LaTeX-math brace group: 12{,}345  (renders 12,345).
+%%   * Negative numbers use math minus: $-$0.0045  (true minus, not hyphen).
+%%   * Stars as math superscripts: 0.0150$^{***}$.
+%%   * Distinguish levels from changes in row LABELS: a change/shock variable
+%%     is written $\Delta$X (e.g. "$\Delta$[SHOCK]"); an interaction uses
+%%     $\times$ (e.g. "[FOCAL] $\times$ $\Delta$[SHOCK]"). Be explicit about
+%%     whether a regressor is a LEVEL or a CHANGE -- never leave it ambiguous.
+%% =====================================================================
+
+\begin{table}[!htb]
+\caption{[TABLE TITLE -- e.g. Does [FOCAL CHARACTERISTIC] Get Priced?]}
+\label{tab:[short_label]}
+\begin{threeparttable}
+
+% --- Header note (description above the table body) -------------------
+% State: the unit of observation, the dependent variable, each sample/
+% column, every focal regressor, the FE, the clustering, and the star
+% legend. Point readers to the variable-definitions appendix.
+\noindent {\footnotesize{}This table reports [one-sentence description of
+the test]. The unit of observation is the firm-month. The dependent
+variable is [DV NAME, e.g.\ the firm-month size/industry-adjusted
+return]. In Column~(1) the sample is [SUBSAMPLE 1] ($N = $[N1]); in
+Column~(2) the sample is [SUBSAMPLE 2] ($N = $[N2]). [FOCAL] is a
+[definition of the focal regressor]. $\Delta$[SHOCK] is the standardized
+one-period change in [the conditioning variable]. All columns include
+industry (three-digit SIC) and year-month fixed effects. Definitions of
+all variables are in Appendix~\ref{app:variables}. Standard errors are
+clustered by firm; $t$-statistics in parentheses are based on
+firm-clustered standard errors. Significance is denoted by {***}, {**},
+and {*} for the 1\%, 5\%, and 10\% levels,
+respectively.}{\footnotesize\par}
+\medskip{}
+
+\fontsize{10}{12}\selectfont
+
+% --- Table body ------------------------------------------------------
+% Column spec: leading l for row labels, one c per model column.
+\begin{tabular*}{\textwidth}{@{\extracolsep{\fill}}lcc}
+\toprule
+                                   & \textit{Sample = [SUBSAMPLE 1]} & \textit{Sample = [SUBSAMPLE 2]} \\
+\midrule
+                                   & (1)            & (2)            \\
+                                   & [DV NAME]      & [DV NAME]      \\
+\midrule
+% ---- FOCAL / HYPOTHESIS TERMS (grouped at the top) ------------------
+% Coefficient + stars on the first line; ( t-stat ) on the second.
+% Separate focal terms with \\[3pt] for a little breathing room.
+%
+% GOTCHA: both \\ and \midrule take an OPTIONAL [..] argument
+% (\\[6pt], \midrule[\heavyrulewidth]). A row whose first token is "["
+% (here the bracketed PLACEHODERS below) would be mis-parsed as that
+% optional argument ("! Missing number"). The leading "{}" blocks that
+% and renders nothing. Once you replace [FOCAL] with a real label such as
+% "Size (log assets)" the "{}" is no longer needed -- remove it then.
+{}[FOCAL]                          & 0.0150$^{***}$ &                \\
+                                   & (2.99)         &                \\[3pt]
+
+{}[FOCAL] $\times$ $\Delta$[SHOCK] & $-$0.0031$^{***}$ &             \\
+                                   & ($-$2.83)      &                \\[3pt]
+
+{}[FOCAL2]                         &                & $-$0.0052$^{***}$ \\
+                                   &                & ($-$4.03)      \\[3pt]
+
+{}[FOCAL2] $\times$ $\Delta$[SHOCK]&                & 0.0043$^{***}$ \\
+                                   &                & (3.84)         \\
+%\midrule   % (optional faint separator before the Controls block)
+% ---- CONTROLS BLOCK (de-emphasized; same two-line format) -----------
+% Group all controls together under the focal terms. Keep the same
+% coef/(t) two-line layout. These are the standard finance controls;
+% swap in whatever your specification uses.
+Size (log assets)                  & $-$0.0015$^{***}$ & $-$0.0010$^{***}$ \\
+                                   & ($-$4.31)      & ($-$2.69)      \\[3pt]
+Book-to-market                     & 0.0078$^{***}$ & 0.0090$^{***}$ \\
+                                   & (5.51)         & (5.66)         \\[3pt]
+ROA                                & 0.0151$^{***}$ & 0.0153$^{***}$ \\
+                                   & (4.58)         & (3.98)         \\[3pt]
+Asset growth                       & 0.0079$^{***}$ & 0.0117$^{***}$ \\
+                                   & (6.20)         & (5.96)         \\[3pt]
+Past 12-month return               & $-$0.0053$^{***}$ & $-$0.0122$^{***}$ \\
+                                   & ($-$3.42)      & ($-$7.38)      \\[3pt]
+Return volatility                  & $-$0.0441$^{***}$ & $-$0.0124    \\
+                                   & ($-$3.81)      & ($-$0.95)      \\
+\midrule
+% ---- FE INDICATORS + FIT STATISTICS (separated by the \midrule) -----
+Industry (SIC3) FE                 & Yes            & Yes            \\
+Year-month FE                      & Yes            & Yes            \\
+Cluster                            & Firm           & Firm           \\
+$N$ (firm-months)                  & [N1]           & [N2]           \\
+Adj.\ $R^2$                        & 0.016          & 0.019          \\
+\bottomrule
+\end{tabular*}
+
+% --- Notes block (machine-checkable inventory under the table) -------
+% Use a threeparttable \tablenotes block OR the inline \textit{Notes:}
+% form below. List, at minimum: DV, FE, cluster, controls, star legend.
+\begin{tablenotes}[flushleft]
+\footnotesize
+\item \textit{Notes:} Dependent variable: [DV NAME]. Fixed effects:
+industry (three-digit SIC) $+$ year-month. Standard errors clustered by
+firm; $t$-statistics in parentheses. Controls: size, book-to-market,
+ROA, asset growth, past 12-month return, return volatility.
+$\Delta$[SHOCK] denotes a standardized one-period change (not a level).
+${}^{*}\,p<0.10$, ${}^{**}\,p<0.05$, ${}^{***}\,p<0.01$;
+$t$-statistics in parentheses.
+\end{tablenotes}
+
+\end{threeparttable}
+\end{table}

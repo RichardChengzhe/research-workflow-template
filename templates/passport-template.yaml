@@ -1,0 +1,109 @@
+# Passport: exhibit/claims-provenance template
+#
+# Copy to quality_reports/passports/<paper-slug>.yaml and fill in.
+#
+# The passport is the machine-readable form of the manuscript's
+# RESULTS_PROVENANCE.md: each entry maps ONE exhibit (Table / Figure) or
+# one numeric claim from the manuscript to the generator script + line/
+# command + output file + tolerance that produced it, plus a verification
+# status. /audit-reproducibility reads this file as the authoritative
+# "Table/Figure -> source_file:source_line" map (RESULTS_PROVENANCE.md is
+# the fallback when no passport exists).
+#
+# Field names below are a contract: /audit-reproducibility (passport mode),
+# /replication-package, and /commit bind to `claims:`, `location`,
+# `source_file`, `source_line`, `output_file`, `output_field`, `tolerance:`,
+# `status`, and `notes`. Do not rename them.
+#
+# See .claude/rules/replication-protocol.md "Claims Provenance (passport)"
+# and .claude/rules/manuscript-overleaf-sync.md (RESULTS_PROVENANCE.md) for
+# the full contract, status semantics, and integration points.
+
+paper:
+  slug: example-paper            # used in filename + report headings
+  title: "Replace with the full paper title"
+  branch: main                   # git branch on which this passport is current
+  last_audit: 2026-05-20T00:00:00Z
+  last_audit_by: human           # human / /audit-reproducibility / other
+
+# One entry per exhibit (Table / Figure) or per numeric claim. Exhibit-level
+# entries are the common case for an empirical finance/accounting paper:
+# one row per table column or panel that a reproducer must regenerate.
+claims:
+  # Example 1 -- a headline coefficient from a regression table (Stata).
+  - id: T3C3
+    claim: "treatment effect = 0.0150 (t = 2.55, N = 120,000)"
+    location: "manuscript/main.tex:Table 3, Col 3 (tab:main)"
+    source_file: code/stata/04_analysis.do
+    source_line: 312                 # the eststo/esttab line producing the cell
+    command: "reghdfe ret i.Treat##i.Post, absorb(gvkey mdate) cluster(gvkey)"
+    output_file: output/tables/main_results.tex
+    output_field: "Col 3, Treat#Post row"   # cell/coef the claim reads
+    tolerance:
+      point_estimate: 0.0001         # absolute tolerance for the headline value
+      t_stat: 0.05                   # absolute tolerance for the t-statistic
+      n: exact                       # sample-size mismatch is never tolerated
+    last_verified_on: 2026-05-20T00:00:00Z
+    last_verified_by: "/audit-reproducibility"
+    status: UNVERIFIED               # PASS | FAIL | EXPLAINED | STALE | UNVERIFIED
+    notes: |
+      Optional notes. Use this field to record:
+      - Known small discrepancies and why they're within tolerance (e.g.,
+        "t differs in 2nd decimal due to reghdfe vs areg clustering df
+        adjustment").
+      - Cross-references to exhibits that share a source (e.g., "Fig 7 is
+        built from the same .dta; both must update together on a rebuild").
+      - To downgrade an out-of-tolerance FAIL to EXPLAINED, a CONCRETE
+        named alternative spec (e.g., "winsorized at 1/99 vs 0.5/99.5;
+        published value matches the 1/99 cut"). A blank or vague note
+        ("unclear") never downgrades a FAIL.
+
+  # Example 2 -- a figure produced by a Python script.
+  - id: FIG7
+    claim: "Long-window BHAR diverges after the focal event (Figure 7)."
+    location: "manuscript/main.tex:Figure 7 (fig:bhar)"
+    source_file: code/python/15_figures.py
+    source_line: 88                  # the savefig / plot-build line
+    command: ".conda_env/python.exe code/python/15_figures.py --fig bhar"
+    output_file: output/figures/fig7_bhar.pdf
+    output_field: ""                 # whole-figure exhibit; no single field
+    tolerance:
+      point_estimate: n/a            # figure exhibit -- visual, not a number
+      n: exact
+    last_verified_on: 2026-05-20T00:00:00Z
+    last_verified_by: "/audit-reproducibility"
+    status: UNVERIFIED
+    notes: |
+      Figure exhibits are verified by regenerating the PDF from the named
+      script and confirming the underlying series file matches; there is no
+      scalar tolerance. Record the series .csv the plot reads if one exists.
+
+  # Example 3 -- a number whose upstream input is a SAS/WRDS extract.
+  - id: T1_N
+    claim: "Sample: 120,000 firm-months, 2017-2025 (Table 1)."
+    location: "manuscript/main.tex:Table 1, N row (tab:sumstats)"
+    source_file: code/sas/build_panel.sas
+    source_line: 204                 # proc that writes the analysis sample
+    command: "qsas build_panel.sas   # WRDS via SSH; check .lst not .log"
+    output_file: data/processed/analysis_panel.dta
+    output_field: "_N after final merge + filters"
+    tolerance:
+      n: exact
+    last_verified_on: 2026-05-20T00:00:00Z
+    last_verified_by: "/audit-reproducibility"
+    status: UNVERIFIED
+    notes: |
+      Restricted-data caveat: the WRDS inputs (CRSP/Compustat/IBES) are not
+      redistributable -- the passport records the build command + cleared
+      output count, not the licensed source rows (see confidential-data.md).
+
+# When you run /audit-reproducibility against this passport it operates in
+# passport mode: for each entry it re-extracts the reported value from the
+# manuscript at `location`, locates the computed value at
+# source_file:source_line / output_file:output_field, compares against
+# `tolerance:`, and rewrites `last_verified_on`, `last_verified_by`, and
+# `status` in place. A tolerance breach flips status to FAIL (and records
+# the discrepancy in notes) unless a concrete named alternative downgrades
+# it to EXPLAINED. An exhibit in the manuscript with no matching entry is
+# reported UNVERIFIED -- passport scope is author-curated, never
+# auto-populated.
